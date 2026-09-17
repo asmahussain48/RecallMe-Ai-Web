@@ -1,0 +1,8 @@
+flask
+flask-cors
+requests
+openai-whisper
+# Optional, for GPU/faster inference (install if you have CUDA compatible GPUs):
+# torch
+# torchvision
+# torchaudio

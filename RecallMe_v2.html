@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RecallMe — AI Lecture Assistant</title>
+  <meta name="description"
+    content="RecallMe records, transcribes, and lets you chat with your lectures using AI — upload video or record live audio and get instant notes.">
+  <meta name="theme-color" content="#090b11">
+  <link rel="icon" type="image/svg+xml"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23090b11'/%3E%3Ctext x='32' y='44' font-family='Georgia,serif' font-size='34' fill='%233b7ef8' text-anchor='middle'%3ER%3C/text%3E%3C/svg%3E">
+  <link
+    href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=JetBrains+Mono:wght@300;400&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+
+  <!-- ═══ LIBRARY PAGE ═══ -->
+  <div id="pg-library" class="page active">
+    <div class="lib-topbar">
+      <div class="brand" onclick="showLibrary()">Recall<span class="brand-dot">Me</span></div>
+      <div class="brand-sep"></div>
+      <div class="brand-sub">Record, upload, and chat with your lectures using AI</div>
+    </div>
+    <div class="lib-tabs">
+      <div class="lib-tab active">Lecture Library</div>
+    </div>
+    <div class="lib-body">
+      <div class="lib-hero">
+        <div class="lib-hero-inner">
+          <div class="lib-h">Your Lecture Library</div>
+          <div class="lib-sub">Upload pre-recorded videos or record live audio lectures. All content is automatically
+            transcribed and you can chat with Letta AI to summarize, organize, and quiz yourself on your notes.</div>
+          <div class="lib-actions">
+            <div class="action-card upload" onclick="openModal('modal-upload')">
+              <div class="action-icon-wrap blue">📹</div>
+              <div class="action-text">
+                <div class="action-title">Upload Video</div>
+                <div class="action-desc">Upload MP4, MOV, AVI or audio files. Audio is auto-extracted and transcribed.
+                </div>
+              </div>
+              <div class="action-arrow">→</div>
+            </div>
+            <div class="action-card record" onclick="openModal('modal-record')">
+              <div class="action-icon-wrap green">🎙️</div>
+              <div class="action-text">
+                <div class="action-title">Record Audio</div>
+                <div class="action-desc">Record live lectures in real time. Letta AI generates notes as you speak.</div>
+              </div>
+              <div class="action-arrow">→</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="lib-grid-area">
+        <div class="lib-grid-header">
+          <div class="lib-section-label">Saved Lectures</div>
+          <div class="lib-count" id="libCount">1 lecture</div>
+        </div>
+        <div class="lecture-grid" id="lectureGrid">
+          <div class="lecture-card" onclick="openSession('The 10 Stages of AI','sample','')">
+            <div class="lc-thumb" style="background:linear-gradient(135deg,#091828,#0f2844)">
+              <div style="text-align:center;padding:12px;z-index:1;position:relative">
+                <div
+                  style="font-size:11px;font-weight:800;color:#fff;line-height:1.35;margin-bottom:6px;letter-spacing:.5px">
+                  THE 10<br>STAGES<br>OF AI</div>
+                <div style="font-size:10px;color:#5080b0;font-weight:500">Deep Learning</div>
+              </div>
+              <div class="lc-play">▶</div>
+            </div>
+            <div class="lc-badge">📹 Sample</div>
+            <div class="lc-info">
+              <div class="lc-title">The 10 Stages of AI</div>
+              <div class="lc-date">Today</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SESSION PAGE ═══ -->
+  <div id="pg-session" class="page">
+    <div class="sess-top">
+      <button class="back-btn" onclick="showLibrary()">
+        <svg viewBox="0 0 24 24">
+          <polyline points="15 18 9 12 15 6" />
+        </svg>
+        Back to Library
+      </button>
+      <div class="sess-brand">RecallMe</div>
+      <div class="sess-actions">
+        <div class="whisper-pill" id="whisperPill" title="Whisper server status">
+          <div class="whisper-dot" id="whisperDot"></div>
+          <span id="whisperLabel">Whisper</span>
+        </div>
+        <button class="fix-btn" id="fixBtn" onclick="correctGrammar()" disabled>✏️ <span>Fix Grammar</span></button>
+        <button class="rec-btn" id="recBtn" onclick="toggleRec()">
+          <div class="rdot"></div><span id="recBtnTxt">Start Recording</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="sess-layout">
+      <!-- LEFT: NOTES/TRANSCRIPT -->
+      <div class="s-left">
+        <div class="sec-head">
+          <span>Notes</span>
+          <div class="sh-btns">
+            <button class="sh-btn" onclick="copyTranscript()">Copy</button>
+            <button class="sh-btn" onclick="clearTranscript()">Clear</button>
+          </div>
+        </div>
+        <!-- LIVE RECORDING STATUS BAR -->
+        <div class="rec-status-bar" id="recStatusBar">
+          <div class="rec-dot-live"></div>
+          <span>Recording live — speak clearly</span>
+          <span id="recWordCount">0 words</span>
+        </div>
+        <div class="notes-scroll" id="notesScroll">
+          <div id="txPlaceholder" class="tx-placeholder">
+            <span>Ready to capture your lecture</span>
+            📹 Upload a video — audio is extracted and transcribed automatically<br>
+            🎙️ Click Start Recording to capture live speech in real time<br>
+            ✏️ Use Fix Grammar to correct speech-to-text errors
+          </div>
+          <div id="txBlocks"></div>
+        </div>
+        <div class="audio-panel">
+          <div class="sec-head">Audio</div>
+          <div class="audio-body">
+            <div class="waveform" id="waveform"></div>
+            <div class="await" id="audioWait">
+              <div class="spin"></div><span>Waiting for agent audio track...</span>
+            </div>
+            <div class="audio-lbl" id="audioLbl"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT: CHAT WITH LETTA (AI-powered by Groq) -->
+      <div class="s-right">
+        <div class="sec-head">
+          <span>Chat with Letta</span>
+          <span style="font-size:9px;color:var(--note);letter-spacing:1px">⚡ POWERED BY GROQ AI</span>
+        </div>
+        <div class="chat-scroll" id="chatScroll">
+          <div class="chat-empty" id="chatEmpty">
+            <div class="chat-empty-orb">🎓</div>
+            <div class="chat-empty-t">Letta is ready</div>
+            <div class="chat-empty-s">Ask questions about your transcript and get instant AI-powered summaries, notes,
+              and quizzes.</div>
+          </div>
+        </div>
+        <div class="chips-row">
+          <div class="chip" onclick="quickAsk('Create detailed structured notes from my transcript')">📝 Notes</div>
+          <div class="chip" onclick="quickAsk('Summarize the key points briefly')">⚡ Summary</div>
+          <div class="chip" onclick="quickAsk('Fix all grammar and spelling errors in the transcript')">✏️ Fix grammar
+          </div>
+          <div class="chip"
+            onclick="quickAsk('Explain the main concepts mentioned in the transcript in detail')">🔎
+            Deep explain</div>
+          <div class="chip" onclick="quickAsk('Create 5 practice quiz questions from this content')">❓ Quiz me</div>
+          <div class="chip" onclick="quickAsk('What are the most important takeaways from this lecture?')">⭐ Key points
+          </div>
+        </div>
+        <div class="chat-input-row">
+          <input class="chat-in" id="chatIn" type="text" placeholder="Ask Letta anything about your lecture…"
+            onkeydown="if(event.key==='Enter')sendChat()" />
+          <button class="send-btn" id="sendBtn" onclick="sendChat()">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ MODAL: UPLOAD ═══ -->
+  <div class="overlay" id="modal-upload" onclick="closeOnBg(event,'modal-upload')">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Add a New Video</div>
+        <button class="modal-close" onclick="closeModal('modal-upload')">✕</button>
+      </div>
+      <div class="mtabs">
+        <div class="mtab active" id="tab-url" onclick="switchTab('url')">Video URL</div>
+        <div class="mtab" id="tab-file" onclick="switchTab('file')">Upload File</div>
+      </div>
+      <div id="pane-url">
+        <label class="flabel">Video Name (Optional)</label>
+        <input class="finput" id="vidName" type="text" placeholder="Leave empty for auto-generated name">
+        <label class="flabel">Video URL</label>
+        <div class="fhint">Paste a YouTube, Vimeo, or direct video/audio link</div>
+        <input class="finput" id="vidUrl" type="url" placeholder="https://youtube.com/watch?v=...">
+        <div class="mbtns">
+          <button class="btn-p" onclick="addFromUrl()">Add Video</button>
+          <button class="btn-c" onclick="closeModal('modal-upload')">Cancel</button>
+        </div>
+      </div>
+      <div id="pane-file" style="display:none">
+        <!-- Method toggle: Whisper (local) vs Claude AI (cloud) -->
+        <div class="method-toggle">
+          <div class="method-btn active green" id="methodWhisper" onclick="setMethod('whisper')">
+            🎙️ Whisper (Local)
+          </div>
+          <div class="method-btn" id="methodClaude" onclick="setMethod('claude')">
+            🤖 Groq AI (Free)
+          </div>
+        </div>
+
+        <div id="whisperNote" class="whisper-note">
+          <strong>Whisper server required.</strong> Run <code
+            style="background:rgba(79,163,224,0.12);color:var(--note);padding:1px 5px;border-radius:3px">python server.py</code>
+          in your terminal first.<br>
+          Supports MP3, MP4, WAV, M4A, MOV, WebM — any language, any accent, offline.
+        </div>
+        <div id="claudeNote" class="whisper-note" style="display:none">
+          Uses Groq Whisper AI (free) to transcribe your audio. Works for MP3, WAV, M4A, WebM.
+        </div>
+
+        <label class="flabel">Select Video or Audio File</label>
+        <div class="dropzone" id="dropZone" ondragover="event.preventDefault();this.classList.add('drag')"
+          ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)"
+          onclick="document.getElementById('fileIn').click()">
+          <div class="dropzone-icon">📁</div>
+          <p>Click to browse or drag &amp; drop</p>
+          <small id="dropzoneHint">MP3, MP4, WAV, M4A, MOV, WebM — any size</small>
+        </div>
+        <input type="file" id="fileIn" accept="video/*,audio/*,.mp3,.wav,.m4a,.flac,.ogg" style="display:none"
+          onchange="onFileSelect(event)">
+        <div class="file-chip" id="fileDisplay"><span id="fileDisplayName"></span></div>
+        <div class="prog-wrap" id="progressWrap">
+          <div class="prog-bar" id="progressBar"></div>
+        </div>
+        <div class="prog-label" id="progressLabel"></div>
+        <div class="mbtns">
+          <button class="btn-p" id="uploadBtn" onclick="processUploadedFile()">🎙️ Transcribe with Whisper</button>
+          <button class="btn-c" onclick="closeModal('modal-upload')">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ MODAL: RECORD ═══ -->
+  <div class="overlay" id="modal-record" onclick="closeOnBg(event,'modal-record')">
+    <div class="modal">
+      <div class="modal-header">
+        <div class="modal-title">Record Live Audio</div>
+        <button class="modal-close" onclick="closeModal('modal-record')">✕</button>
+      </div>
+      <div class="rec-steps">
+        <div class="rec-step">
+          <div class="step-num">1</div>
+          <p>Click <strong>Start Recording Session</strong> and allow microphone access when prompted</p>
+        </div>
+        <div class="rec-step">
+          <div class="step-num">2</div>
+          <p>Speak naturally — your words are transcribed live. The transcript updates continuously without freezing</p>
+        </div>
+        <div class="rec-step">
+          <div class="step-num">3</div>
+          <p>Letta AI generates smart notes automatically as you speak</p>
+        </div>
+      </div>
+      <div class="mbtns">
+        <button class="btn-p" onclick="startRecordSession()">Start Recording Session</button>
+        <button class="btn-c" onclick="closeModal('modal-record')">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="_toast"></div>
+
+  <script src="script.js"></script>
+</body>
+
+</html>
