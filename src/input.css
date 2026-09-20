@@ -1,0 +1,170 @@
+@import "tailwindcss" source(none);
+
+/* Only scan the files that contain class names (keeps the build fast and ignores the Python venv). */
+@source "../RecallMe_v2.html";
+@source "../script.js";
+
+/* Class-based dark mode: <html class="dark"> */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ───────────────────────── Design tokens ───────────────────────── */
+@theme {
+  /* Typography: Inter for UI/body, Manrope for headings & brand */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-display: "Manrope", "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* Primary — indigo */
+  --color-primary-50: #eef2ff;
+  --color-primary-100: #e0e7ff;
+  --color-primary-200: #c7d2fe;
+  --color-primary-300: #a5b4fc;
+  --color-primary-400: #818cf8;
+  --color-primary-500: #6366f1;
+  --color-primary-600: #4f46e5;
+  --color-primary-700: #4338ca;
+  --color-primary-800: #3730a3;
+  --color-primary-900: #312e81;
+  --color-primary-950: #1e1b4b;
+
+  /* Accent — emerald (record / live / online) */
+  --color-accent-50: #ecfdf5;
+  --color-accent-100: #d1fae5;
+  --color-accent-200: #a7f3d0;
+  --color-accent-300: #6ee7b7;
+  --color-accent-400: #34d399;
+  --color-accent-500: #10b981;
+  --color-accent-600: #059669;
+  --color-accent-700: #047857;
+  --color-accent-800: #065f46;
+  --color-accent-900: #064e3b;
+  --color-accent-950: #022c22;
+
+  /* Motion */
+  --animate-fade-up: fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-fade-in: fade-in 0.4s ease-out both;
+  --animate-scale-in: scale-in 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+  --animate-typing: typing 1.1s ease-in-out infinite;
+
+  @keyframes fade-up {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes scale-in {
+    from { opacity: 0; transform: scale(0.96) translateY(8px); }
+    to { opacity: 1; transform: none; }
+  }
+  @keyframes typing {
+    0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
+    30% { transform: translateY(-4px); opacity: 1; }
+  }
+}
+
+/* Semantic colors that swap between light and dark, so markup stays short:
+   bg-canvas / bg-surface / bg-surface-2 / border-line / text-ink / text-ink-2 / text-ink-3 / text-brand … */
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--line);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-ink-3: var(--ink-3);
+  --color-brand: var(--brand);
+  --color-primary-soft: var(--primary-soft);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+}
+
+:root {
+  --canvas: #f6f7fb;
+  --surface: #ffffff;
+  --surface-2: #f1f4f9;
+  --line: #e2e8f0;
+  --ink: #0f172a;
+  --ink-2: #475569;
+  --ink-3: #5b6779;
+  --brand: #4f46e5;
+  --primary-soft: #eef2ff;
+  --accent-fg: #047857;
+  --accent-soft: #ecfdf5;
+  --glow-1: rgb(99 102 241 / 0.13);
+  --glow-2: rgb(16 185 129 / 0.09);
+  --scroll: #cbd5e1;
+  color-scheme: light;
+}
+
+.dark {
+  --canvas: #0a0d16;
+  --surface: #111624;
+  --surface-2: #171d2e;
+  --line: #252d42;
+  --ink: #e9edf6;
+  --ink-2: #a5b0c6;
+  --ink-3: #8390a8;
+  --brand: #a5b4fc;
+  --primary-soft: rgb(99 102 241 / 0.16);
+  --accent-fg: #6ee7b7;
+  --accent-soft: rgb(16 185 129 / 0.14);
+  --glow-1: rgb(99 102 241 / 0.2);
+  --glow-2: rgb(16 185 129 / 0.08);
+  --scroll: #2f3950;
+  color-scheme: dark;
+}
+
+/* ───────────────────────── Base ───────────────────────── */
+@layer base {
+  html {
+    font-family: var(--font-sans);
+    -webkit-text-size-adjust: 100%;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scroll) transparent;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scroll) transparent;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: var(--font-display);
+    text-wrap: balance;
+  }
+
+  /* Tailwind v4 resets buttons to the default cursor — restore the pointer for enabled controls. */
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  label[for] {
+    cursor: pointer;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-primary-500);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-primary-500) 30%, transparent);
+  }
+}
+
+/* Hide scrollbars on horizontally scrolling chip rows */
+@utility scrollbar-none {
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -11,25 +11,77 @@
     let recRestartTimer = null;
 
     // ═══════════════════════════════════════════════
+    //  UI HELPERS — visibility, icons, badges, theme
+    //  (Tailwind class names below are kept as full literal strings so the CSS build can see them)
+    // ═══════════════════════════════════════════════
+    // Uses the HTML `hidden` attribute (Tailwind's preflight makes it display:none !important),
+    // so it works regardless of any flex/grid display class on the element.
+    function setShown(el, shown) { if (el) el.hidden = !shown; }
+
+    // SVG icon from the sprite at the top of RecallMe_v2.html
+    function icon(name, cls = 'size-4') {
+      return `<svg class="${cls}" aria-hidden="true"><use href="#i-${name}"/></svg>`;
+    }
+
+    const BADGE_BASE = 'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold';
+    const BADGE_STYLES = {
+      video: 'border-primary-500/20 bg-primary-soft text-brand',
+      mic: 'border-accent-500/25 bg-accent-soft text-accent-fg',
+      live: 'border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300',
+      fixed: 'border-accent-500/25 bg-accent-soft text-accent-fg'
+    };
+    function setBadge(blockId, variant, label) {
+      const badge = document.getElementById(blockId + '_badge');
+      if (!badge) return;
+      badge.className = BADGE_BASE + ' ' + BADGE_STYLES[variant];
+      const lead = variant === 'live' ? '<span class="size-1.5 animate-pulse rounded-full bg-red-500"></span>'
+        : variant === 'fixed' ? icon('check', 'size-3') : '';
+      badge.innerHTML = lead + escH(label);
+    }
+
+    function toggleTheme() {
+      const dark = !document.documentElement.classList.contains('dark');
+      document.documentElement.classList.toggle('dark', dark);
+      try { localStorage.setItem('recallme-theme', dark ? 'dark' : 'light'); } catch (e) { }
+      const meta = document.getElementById('metaTheme');
+      if (meta) meta.setAttribute('content', dark ? '#0a0d16' : '#f6f7fb');
+    }
+
+    // ═══════════════════════════════════════════════
     //  PAGE ROUTING
     // ═══════════════════════════════════════════════
-    function showLibrary() { stopRec(); show('pg-library'); hide('pg-session'); }
-    function show(id) { document.getElementById(id).classList.add('active'); }
-    function hide(id) { document.getElementById(id).classList.remove('active'); }
+    function showLibrary() { stopRec(); show('pg-library'); hide('pg-session'); window.scrollTo(0, 0); }
+    function show(id) { document.getElementById(id).hidden = false; }
+    function hide(id) { document.getElementById(id).hidden = true; }
+
+    // Notes / Chat switcher used on screens narrower than the two-column breakpoint
+    function setSessionTab(tab) {
+      document.getElementById('sessLayout').dataset.tab = tab;
+      document.getElementById('stab-notes').setAttribute('aria-selected', String(tab === 'notes'));
+      document.getElementById('stab-chat').setAttribute('aria-selected', String(tab === 'chat'));
+      if (tab === 'chat') {
+        setShown(document.getElementById('chatDot'), false);
+        const chat = document.getElementById('chatScroll');
+        chat.scrollTop = chat.scrollHeight;
+      }
+    }
+    // Dot on the "Chat" tab when Letta posts while the Notes tab is showing
+    function markChatUnread() {
+      const layout = document.getElementById('sessLayout');
+      if (layout && layout.dataset.tab === 'notes') setShown(document.getElementById('chatDot'), true);
+    }
 
     function openSession(title, type, fileName) {
       hist = []; notesDone = false; transcriptBlocks = [];
       finalTxStr = ''; liveBlockId = null;
+      document.getElementById('sessTitle').textContent = title || 'Lecture';
       document.getElementById('txBlocks').innerHTML = '';
-      document.getElementById('txPlaceholder').style.display = 'block';
-      document.getElementById('chatScroll').innerHTML = `
-    <div class="chat-empty" id="chatEmpty">
-      <div class="chat-empty-orb">🎓</div>
-      <div class="chat-empty-t">Letta is ready</div>
-      <div class="chat-empty-s">Ask questions about your transcript and get instant AI-powered summaries, notes, and quizzes.</div>
-    </div>`;
+      setShown(document.getElementById('txPlaceholder'), true);
+      document.getElementById('chatScroll').replaceChildren(
+        document.getElementById('tpl-chat-empty').content.cloneNode(true));
       document.getElementById('fixBtn').disabled = true;
-      document.getElementById('recStatusBar').classList.remove('visible');
+      setShown(document.getElementById('recStatusBar'), false);
+      setSessionTab('notes');
       hide('pg-library'); show('pg-session');
       if (type === 'sample') setTimeout(loadSample, 350);
     }
@@ -43,21 +95,40 @@
     // ═══════════════════════════════════════════════
     //  MODALS
     // ═══════════════════════════════════════════════
-    function openModal(id) { document.getElementById(id).classList.add('open'); }
-    function closeModal(id) { document.getElementById(id).classList.remove('open'); }
-    function closeOnBg(e, id) { if (e.target.classList.contains('overlay')) closeModal(id); }
+    let modalOpener = null;
+    function openModal(id) {
+      const overlay = document.getElementById(id);
+      modalOpener = document.activeElement;
+      setShown(overlay, true);
+      document.documentElement.classList.add('overflow-hidden');
+      overlay.firstElementChild.focus();
+    }
+    function closeModal(id) {
+      setShown(document.getElementById(id), false);
+      document.documentElement.classList.remove('overflow-hidden');
+      if (modalOpener && modalOpener.focus) modalOpener.focus();
+      modalOpener = null;
+    }
+    function closeOnBg(e, id) { if (e.target === e.currentTarget) closeModal(id); }
+
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      ['modal-upload', 'modal-record'].forEach(id => {
+        if (!document.getElementById(id).hidden) closeModal(id);
+      });
+    });
 
     function switchTab(t) {
-      document.getElementById('pane-url').style.display = t === 'url' ? 'block' : 'none';
-      document.getElementById('pane-file').style.display = t === 'file' ? 'block' : 'none';
-      document.getElementById('tab-url').classList.toggle('active', t === 'url');
-      document.getElementById('tab-file').classList.toggle('active', t === 'file');
+      setShown(document.getElementById('pane-url'), t === 'url');
+      setShown(document.getElementById('pane-file'), t === 'file');
+      document.getElementById('tab-url').setAttribute('aria-selected', String(t === 'url'));
+      document.getElementById('tab-file').setAttribute('aria-selected', String(t === 'file'));
     }
 
     function addFromUrl() {
       const name = document.getElementById('vidName').value.trim();
       const url = document.getElementById('vidUrl').value.trim();
-      if (!url) { alert('Please enter a video URL.'); return; }
+      if (!url) { showToast('Please enter a video URL.', 'error'); return; }
       let title = name;
       if (!title) { try { title = new URL(url).hostname.replace('www.', ''); } catch (e) { title = 'Lecture'; } }
       addLibraryCard(title, 'url', url);
@@ -68,16 +139,15 @@
 
     function handleDrop(e) {
       e.preventDefault();
-      document.getElementById('dropZone').classList.remove('drag');
+      document.getElementById('dropZone').dataset.drag = 'false';
       const f = e.dataTransfer.files[0];
       if (f) setSelectedFile(f);
     }
     function onFileSelect(e) { if (e.target.files[0]) setSelectedFile(e.target.files[0]); }
     function setSelectedFile(f) {
       selFile = f;
-      const d = document.getElementById('fileDisplay');
-      document.getElementById('fileDisplayName').textContent = '📎 ' + f.name + ' (' + (f.size / 1024 / 1024).toFixed(1) + ' MB)';
-      d.style.display = 'flex';
+      document.getElementById('fileDisplayName').textContent = f.name + ' (' + (f.size / 1024 / 1024).toFixed(1) + ' MB)';
+      setShown(document.getElementById('fileDisplay'), true);
     }
 
     // ═══════════════════════════════════════════════
@@ -93,17 +163,16 @@
     // ── Whisper server health check ───────────────────────────────────────────────
     async function checkWhisperServer() {
       const pill = document.getElementById('whisperPill');
-      const dot = document.getElementById('whisperDot');
       const label = document.getElementById('whisperLabel');
       try {
         const r = await fetch(WHISPER_URL + '/health', { signal: AbortSignal.timeout(2000) });
-        const d = await r.json();
+        await r.json();
         whisperOnline = r.ok;
       } catch (e) { whisperOnline = false; }
 
       if (pill) {
-        pill.className = 'whisper-pill ' + (whisperOnline ? 'online' : 'offline');
-        label.textContent = whisperOnline ? 'Whisper ✓' : 'Whisper offline';
+        pill.dataset.state = whisperOnline ? 'online' : 'offline';
+        label.textContent = whisperOnline ? 'Server online' : 'Server offline';
       }
       return whisperOnline;
     }
@@ -115,28 +184,28 @@
     // ── Method toggle ─────────────────────────────────────────────────────────────
     function setMethod(m) {
       uploadMethod = m;
-      document.getElementById('methodWhisper').className = 'method-btn' + (m === 'whisper' ? ' active green' : '');
-      document.getElementById('methodClaude').className = 'method-btn' + (m === 'claude' ? ' active' : '');
-      document.getElementById('whisperNote').style.display = m === 'whisper' ? '' : 'none';
-      document.getElementById('claudeNote').style.display = m === 'claude' ? '' : 'none';
+      document.getElementById('methodWhisper').setAttribute('aria-checked', String(m === 'whisper'));
+      document.getElementById('methodClaude').setAttribute('aria-checked', String(m === 'claude'));
+      setShown(document.getElementById('whisperNote'), m === 'whisper');
+      setShown(document.getElementById('claudeNote'), m === 'claude');
       document.getElementById('dropzoneHint').textContent = m === 'whisper'
         ? 'MP3, MP4, WAV, M4A, MOV, WebM — any size, any language'
         : 'MP3, WAV, M4A, WebM — max ~10 MB for best results';
-      document.getElementById('uploadBtn').textContent = m === 'whisper'
-        ? '🎙️ Transcribe with Whisper'
-        : '🤖 Transcribe with Groq AI';
+      document.getElementById('uploadBtnTxt').textContent = m === 'whisper'
+        ? 'Transcribe with Whisper'
+        : 'Transcribe with Groq AI';
     }
 
     // ── Main entry: processUploadedFile decides which engine to use ───────────────
     async function processUploadedFile() {
-      if (!selFile) { alert('Please select a file first.'); return; }
+      if (!selFile) { showToast('Please select a file first.', 'error'); return; }
       const btn = document.getElementById('uploadBtn');
-      btn.disabled = true; btn.textContent = 'Processing…';
+      btn.disabled = true; document.getElementById('uploadBtnTxt').textContent = 'Processing…';
       const pw = document.getElementById('progressWrap');
       const pb = document.getElementById('progressBar');
       const pl = document.getElementById('progressLabel');
-      pw.style.display = 'block'; pl.style.display = 'block';
-      pl.style.color = 'var(--t2)';
+      setShown(pw, true); setShown(pl, true);
+      pl.dataset.state = 'idle';
       pl.textContent = 'Starting…'; pb.style.width = '4%';
 
       const fileName = selFile.name;
@@ -160,7 +229,7 @@
               '2. Run:  python server.py\n' +
               '3. Wait for "Model ready ✓" message\n' +
               '4. Then try uploading again.\n\n' +
-              'Or switch to "Claude AI" mode above.'
+              'Or switch to "Groq AI" mode above.'
             );
           }
           transcript = await transcribeWithWhisper(selFile, onProgress);
@@ -170,7 +239,7 @@
 
         pb.style.width = '100%';
         pl.textContent = '✓ Transcription complete!';
-        pl.style.color = 'var(--green)';
+        pl.dataset.state = 'success';
 
         setTimeout(() => {
           closeModal('modal-upload');
@@ -181,17 +250,16 @@
             setTimeout(() => generateNotes(getAllText()), 900);
           }, 300);
           selFile = null;
-          document.getElementById('fileDisplay').style.display = 'none';
-          pw.style.display = 'none'; pl.style.display = 'none';
+          setShown(document.getElementById('fileDisplay'), false);
+          setShown(pw, false); setShown(pl, false);
           pb.style.width = '0%';
           btn.disabled = false;
           setMethod(uploadMethod); // restore button label
         }, 800);
 
       } catch (err) {
-        pl.textContent = '✕ ' + err.message.split('\n')[0];
-        pl.style.color = '#ff4d6d';
-        if (err.message.includes('\n')) alert(err.message);
+        pl.textContent = err.message;
+        pl.dataset.state = 'error';
         btn.disabled = false;
         setMethod(uploadMethod);
       }
@@ -327,25 +395,28 @@
     function addTranscriptBlock(type, source, text) {
       const id = 'blk_' + Date.now();
       transcriptBlocks.push({ id, type, source, text, corrected: null });
-      document.getElementById('txPlaceholder').style.display = 'none';
+      setShown(document.getElementById('txPlaceholder'), false);
       document.getElementById('fixBtn').disabled = false;
       const container = document.getElementById('txBlocks');
       const block = document.createElement('div');
-      block.id = id; block.className = 'tx-block';
-      const icon = type === 'video' ? '📹' : '🎙️';
+      block.id = id;
+      block.className = 'border-b border-line px-4 py-5 last:border-b-0 sm:px-5 motion-safe:animate-fade-up';
+      const isVideo = type === 'video';
+      const iconTint = isVideo ? 'bg-primary-soft text-brand' : 'bg-accent-soft text-accent-fg';
       const now = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       block.innerHTML = `
-    <div class="tx-source-header">
-      <div class="tx-src-icon ${type}">${icon}</div>
-      <div class="tx-src-meta">
-        <div class="tx-src-name">${source}</div>
-        <div class="tx-src-sub">${now} · ${type === 'video' ? 'Audio extracted' : 'Live recording'}</div>
+    <div class="mb-4 flex items-center gap-3 border-b border-line pb-4">
+      <span class="grid size-9 shrink-0 place-items-center rounded-lg ${iconTint}">${icon(isVideo ? 'video' : 'mic')}</span>
+      <div class="min-w-0 flex-1">
+        <div class="truncate text-sm font-semibold">${escH(source)}</div>
+        <div class="mt-0.5 text-xs text-ink-3">${now} · ${isVideo ? 'Audio extracted' : 'Live recording'}</div>
       </div>
-      <div class="tx-src-badge ${type}" id="${id}_badge">${type === 'video' ? 'Video Extract' : 'Live Recording'}</div>
+      <span id="${id}_badge" class="${BADGE_BASE} ${BADGE_STYLES[type]}">${isVideo ? 'Video extract' : 'Live recording'}</span>
     </div>
-    <div class="tx-text" id="${id}_text">${escH(text)}</div>`;
+    <div id="${id}_text" class="whitespace-pre-wrap break-words text-[15px] leading-7 text-ink">${escH(text)}</div>`;
       container.appendChild(block);
-      document.getElementById('notesScroll').scrollTop = 99999;
+      // Live recordings follow the newest text; an uploaded transcript stays at its start.
+      if (!isVideo || transcriptBlocks.length > 1) document.getElementById('notesScroll').scrollTop = 99999;
       return id;
     }
 
@@ -362,7 +433,7 @@
       if (!confirm('Clear all transcript content?')) return;
       transcriptBlocks = []; finalTxStr = ''; notesDone = false;
       document.getElementById('txBlocks').innerHTML = '';
-      document.getElementById('txPlaceholder').style.display = 'block';
+      setShown(document.getElementById('txPlaceholder'), true);
       document.getElementById('fixBtn').disabled = true;
       stopRec();
     }
@@ -377,24 +448,23 @@
     function toggleRec() { isRec ? stopRec() : startRec(); }
 
     function startRec() {
-      if (!SR_ENGINE) { alert('Use Google Chrome or Edge for live recording.'); return; }
+      if (!SR_ENGINE) { showToast('Use Google Chrome or Edge for live recording.', 'error'); return; }
       isRec = true;
       recRestartAttempts = 0;
       finalTxStr = '';
       liveBlockId = null;
       notesDone = false;
 
-      document.getElementById('recBtn').classList.add('on');
+      document.getElementById('recBtn').dataset.recording = 'true';
       document.getElementById('recBtnTxt').textContent = 'Stop Recording';
-      document.getElementById('txPlaceholder').style.display = 'none';
+      setShown(document.getElementById('txPlaceholder'), false);
       document.getElementById('fixBtn').disabled = false;
-      document.getElementById('recStatusBar').classList.add('visible');
+      document.getElementById('recWordCount').textContent = '0 words';
+      setShown(document.getElementById('recStatusBar'), true);
       startWave();
 
       liveBlockId = addTranscriptBlock('mic', 'Live Recording', '');
-      // Change badge to live
-      const badge = document.getElementById(liveBlockId + '_badge');
-      if (badge) { badge.className = 'tx-src-badge live'; badge.textContent = '🔴 LIVE'; }
+      setBadge(liveBlockId, 'live', 'Live');
 
       _spawnRecognition();
     }
@@ -450,7 +520,7 @@
         // Show interim text with italic styling
         if (liveBlockId && interimText) {
           const el = document.getElementById(liveBlockId + '_text');
-          if (el) el.innerHTML = escH(finalTxStr) + `<span style="color:var(--t2);font-style:italic;opacity:.55"> ${escH(interimText)}</span>`;
+          if (el) el.innerHTML = escH(finalTxStr) + `<span class="italic text-ink-3"> ${escH(interimText)}</span>`;
         }
         document.getElementById('notesScroll').scrollTop = 99999;
       };
@@ -458,7 +528,7 @@
       recog.onerror = (e) => {
         const err = e ? e.error : '';
         if (err === 'not-allowed') {
-          alert('Microphone access denied. Please allow microphone in browser settings.');
+          showToast('Microphone access denied. Please allow microphone in browser settings.', 'error');
           isRec = false;
           _resetRecUI();
           return;
@@ -497,19 +567,15 @@
       _resetRecUI();
 
       // Finalize badge
-      if (liveBlockId) {
-        const badge = document.getElementById(liveBlockId + '_badge');
-        if (badge) { badge.className = 'tx-src-badge mic'; badge.textContent = 'Live Recording'; }
-      }
+      if (liveBlockId) setBadge(liveBlockId, 'mic', 'Live recording');
     }
 
     function _resetRecUI() {
       const btn = document.getElementById('recBtn');
-      if (btn) btn.classList.remove('on');
+      if (btn) btn.dataset.recording = 'false';
       const txt = document.getElementById('recBtnTxt');
       if (txt) txt.textContent = 'Start Recording';
-      const bar = document.getElementById('recStatusBar');
-      if (bar) bar.classList.remove('visible');
+      setShown(document.getElementById('recStatusBar'), false);
       stopWave();
     }
 
@@ -521,16 +587,15 @@
       wf.innerHTML = '';
       for (let i = 0; i < 28; i++) {
         const b = document.createElement('div');
-        b.className = 'wbar';
+        b.className = 'wbar w-[3px] rounded-full bg-accent-500';
         wf.appendChild(b);
       }
     }
     function startWave() {
       buildWave();
-      document.getElementById('waveform').classList.add('live');
-      document.getElementById('audioWait').style.display = 'none';
-      document.getElementById('audioLbl').style.display = 'block';
-      document.getElementById('audioLbl').textContent = '🎙️ Live microphone';
+      setShown(document.getElementById('waveform'), true);
+      setShown(document.getElementById('audioWait'), false);
+      setShown(document.getElementById('audioLbl'), true);
 
       let phase = 0;
       function animate() {
@@ -550,11 +615,9 @@
       if (waveAnimFrame) { cancelAnimationFrame(waveAnimFrame); waveAnimFrame = null; }
       clearInterval(waveInt);
       const wf = document.getElementById('waveform');
-      if (wf) { wf.classList.remove('live'); wf.innerHTML = ''; }
-      const aw = document.getElementById('audioWait');
-      if (aw) aw.style.display = 'flex';
-      const al = document.getElementById('audioLbl');
-      if (al) al.style.display = 'none';
+      if (wf) { setShown(wf, false); wf.innerHTML = ''; }
+      setShown(document.getElementById('audioWait'), true);
+      setShown(document.getElementById('audioLbl'), false);
     }
 
     // ═══════════════════════════════════════════════
@@ -610,14 +673,17 @@ Rules:
     function renderNotes(sections) {
       if (!sections || !sections.length) return;
       const p = document.getElementById('chatScroll');
-      const card = document.createElement('div'); card.className = 'letta-card';
-      let html = `<div class="letta-tag"><div class="ldot"></div>Auto-Generated Notes</div>`;
+      const card = document.createElement('div');
+      card.className = 'rounded-2xl border border-line bg-surface-2 p-4 sm:p-5 motion-safe:animate-fade-up';
+      let html = `<div class="mb-4 flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-brand">${icon('sparkles')}Auto-generated notes</div><div class="space-y-5">`;
       sections.forEach(s => {
         if (!s.points || !s.points.length) return;
-        html += `<div class="notes-sec"><div class="nsec-title">${escH(s.title)}</div><ul class="nsec-ul">${s.points.map(pt => `<li>${escH(pt)}</li>`).join('')}</ul></div>`;
+        html += `<section><h3 class="mb-2 flex items-center gap-2 text-sm font-semibold"><span class="h-4 w-1 rounded-full bg-primary-500"></span>${escH(s.title)}</h3><ul class="space-y-1.5">${s.points.map(pt => `<li class="relative pl-4 text-sm leading-relaxed text-ink-2 before:absolute before:left-0 before:top-2 before:size-1.5 before:rounded-full before:bg-primary-500/60">${escH(pt)}</li>`).join('')}</ul></section>`;
       });
+      html += '</div>';
       card.innerHTML = html;
       p.appendChild(card); p.scrollTop = 99999;
+      markChatUnread();
     }
 
     function smartFallback(tx) {
@@ -697,9 +763,10 @@ Keep responses under 300 words unless creating full notes. Be helpful, accurate,
     // ═══════════════════════════════════════════════
     async function correctGrammar() {
       const btn = document.getElementById('fixBtn');
-      btn.disabled = true; btn.innerHTML = '⏳ <span>Fixing...</span>';
+      const btnTxt = document.getElementById('fixBtnTxt');
+      btn.disabled = true; btnTxt.textContent = 'Fixing…';
       const tx = getAllText();
-      if (!tx || tx.length < 10) { btn.disabled = false; btn.innerHTML = '✏️ <span>Fix Grammar</span>'; return; }
+      if (!tx || tx.length < 10) { btn.disabled = false; btnTxt.textContent = 'Fix Grammar'; return; }
       try {
         const fixed = await callClaude(
           `You are a grammar and spelling correction specialist.
@@ -717,9 +784,8 @@ RULES:
         if (lastId) {
           const block = transcriptBlocks.find(b => b.id === lastId);
           const el = document.getElementById(lastId + '_text');
-          const badge = document.getElementById(lastId + '_badge');
           if (block && el) { block.corrected = fixed; el.textContent = fixed; }
-          if (badge) { badge.className = 'tx-src-badge fixed'; badge.textContent = 'Grammar Fixed ✓'; }
+          setBadge(lastId, 'fixed', 'Grammar fixed');
         }
         hideEmpty();
         addMsg('ai', `✅ **Grammar corrected!**\n\nI fixed:\n- Missing apostrophes (don't, I'm, it's, we're)\n- Sentence capitalization\n- Punctuation and periods\n- Common speech-to-text errors\n\nThe corrected text is now showing in the Notes panel.`);
@@ -729,14 +795,13 @@ RULES:
         if (lastId) {
           const block = transcriptBlocks.find(b => b.id === lastId);
           const el = document.getElementById(lastId + '_text');
-          const badge = document.getElementById(lastId + '_badge');
           if (block && el) { block.corrected = fixed; el.textContent = fixed; }
-          if (badge) { badge.className = 'tx-src-badge fixed'; badge.textContent = 'Grammar Fixed ✓'; }
+          setBadge(lastId, 'fixed', 'Grammar fixed');
         }
         hideEmpty();
         addMsg('ai', '✅ **Grammar fixed locally.** Basic corrections applied — apostrophes, capitalization, and punctuation corrected.');
       }
-      btn.disabled = false; btn.innerHTML = '✏️ <span>Fix Grammar</span>';
+      btn.disabled = false; btnTxt.textContent = 'Fix Grammar';
     }
 
     function localGrammarFix(text) {
@@ -761,25 +826,40 @@ RULES:
     // ═══════════════════════════════════════════════
     //  LIBRARY CARD
     // ═══════════════════════════════════════════════
-    const CARD_EMOJIS = ['🎓', '📘', '🔬', '💡', '🧠', '📡', '🎤', '📽️', '🖥️', '⚗️'];
+    const THUMB_GRADIENTS = [
+      'from-primary-500 to-primary-800',
+      'from-accent-500 to-accent-800',
+      'from-sky-500 to-primary-700',
+      'from-violet-500 to-primary-800',
+      'from-teal-500 to-primary-700'
+    ];
+    const CARD_LABELS = { video: 'Video', url: 'Link', mic: 'Audio' };
     function addLibraryCard(title, type, source) {
       const grid = document.getElementById('lectureGrid');
-      const c = document.createElement('div');
-      c.className = 'lecture-card';
+      const c = document.createElement('button');
+      c.type = 'button';
+      c.className = 'group relative overflow-hidden rounded-2xl border border-line bg-surface text-left shadow-sm transition duration-200 hover:-translate-y-1 hover:border-primary-500/40 hover:shadow-lg motion-safe:animate-fade-up';
       c.onclick = () => openSession(title, type, source);
-      const emoji = CARD_EMOJIS[Math.floor(Math.random() * CARD_EMOJIS.length)];
-      const short = title.length > 22 ? title.substring(0, 20) + '…' : title;
+      const grad = THUMB_GRADIENTS[[...title].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % THUMB_GRADIENTS.length];
+      const short = title.length > 40 ? title.substring(0, 38) + '…' : title;
+      const kind = type === 'mic' ? 'mic' : 'video';
       c.innerHTML = `
-    <div class="lc-thumb" style="flex-direction:column;gap:6px">
-      <div style="font-size:36px">${emoji}</div>
-      <div style="font-size:11px;color:rgba(255,255,255,0.45);text-align:center;padding:0 8px;line-height:1.3">${short}</div>
-      <div class="lc-play">▶</div>
-    </div>
-    <div class="lc-badge">${type === 'video' ? '📹' : '🎙️'} ${type === 'video' ? 'Video' : 'Audio'}</div>
-    <div class="lc-info">
-      <div class="lc-title">${title}</div>
-      <div class="lc-date">Just added</div>
-    </div>`;
+    <span class="relative block h-36 overflow-hidden bg-linear-to-br ${grad} sm:h-40">
+      <span class="absolute -right-6 -top-6 size-28 rounded-full bg-white/10"></span>
+      <span class="absolute -bottom-10 -left-6 size-32 rounded-full bg-white/10"></span>
+      <span class="absolute inset-0 flex flex-col items-center justify-center gap-2 p-4 text-center text-white">
+        <span class="grid size-11 place-items-center rounded-xl bg-white/15 backdrop-blur">${icon(kind, 'size-6')}</span>
+        <span class="line-clamp-2 text-sm font-semibold leading-snug">${escH(short)}</span>
+      </span>
+      <span class="absolute inset-0 grid place-items-center bg-slate-950/0 opacity-0 transition duration-200 group-hover:bg-slate-950/30 group-hover:opacity-100">
+        <span class="grid size-11 place-items-center rounded-full bg-white/95 text-primary-700 shadow-lg">${icon('play', 'size-5 translate-x-px')}</span>
+      </span>
+      <span class="absolute right-2.5 top-2.5 inline-flex items-center gap-1 rounded-full bg-black/40 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">${icon(kind, 'size-3.5')}${CARD_LABELS[type] || 'Video'}</span>
+    </span>
+    <span class="block p-4">
+      <span class="block truncate text-sm font-semibold">${escH(title)}</span>
+      <span class="mt-1 block text-xs text-ink-3">Just added</span>
+    </span>`;
       grid.appendChild(c);
       updateLibCount();
     }
@@ -797,53 +877,142 @@ RULES:
     //  UI HELPERS
     // ═══════════════════════════════════════════════
     function hideEmpty() {
-      const e = document.getElementById('chatEmpty');
-      if (e) e.style.display = 'none';
+      setShown(document.getElementById('chatEmpty'), false);
     }
     function addMsg(role, text) {
       const p = document.getElementById('chatScroll');
-      const d = document.createElement('div'); d.className = 'msg ' + (role === 'user' ? 'user' : 'ai');
-      const w = document.createElement('div'); w.className = 'msg-who'; w.textContent = role === 'user' ? 'You' : 'Letta';
-      const b = document.createElement('div'); b.className = 'msg-b';
-      b.innerHTML = role === 'ai' ? renderMd(text) : escH(text);
+      const isUser = role === 'user';
+      const d = document.createElement('div');
+      d.className = 'flex flex-col gap-1 motion-safe:animate-fade-up ' + (isUser ? 'items-end' : 'items-start');
+      const w = document.createElement('div');
+      w.className = 'flex items-center gap-1.5 px-1 text-xs font-semibold ' + (isUser ? 'text-ink-3' : 'text-brand');
+      w.innerHTML = isUser ? 'You' : icon('sparkles', 'size-3.5') + 'Letta';
+      const b = document.createElement('div');
+      if (isUser) {
+        b.className = 'max-w-[88%] whitespace-pre-wrap break-words rounded-2xl rounded-br-md bg-primary-600 px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm';
+        b.textContent = text;
+      } else {
+        b.className = 'max-w-full break-words rounded-2xl rounded-tl-md border border-line bg-surface-2 px-4 py-3 text-sm leading-relaxed text-ink sm:max-w-[95%]';
+        b.innerHTML = renderMd(text);
+      }
       d.appendChild(w); d.appendChild(b); p.appendChild(d); p.scrollTop = 99999;
+      if (!isUser) markChatUnread();
     }
     function addTyping() {
       const p = document.getElementById('chatScroll');
       const id = 'ty_' + Date.now();
-      const d = document.createElement('div'); d.id = id; d.className = 'msg ai';
-      const w = document.createElement('div'); w.className = 'msg-who'; w.textContent = 'Letta';
-      const t = document.createElement('div'); t.className = 'typing-row';
-      t.innerHTML = '<div class="td"></div><div class="td"></div><div class="td"></div>';
-      d.appendChild(w); d.appendChild(t); p.appendChild(d); p.scrollTop = 99999;
+      const d = document.createElement('div');
+      d.id = id;
+      d.className = 'flex flex-col items-start gap-1 motion-safe:animate-fade-in';
+      d.innerHTML = `
+    <div class="flex items-center gap-1.5 px-1 text-xs font-semibold text-brand">${icon('sparkles', 'size-3.5')}Letta</div>
+    <div class="flex w-fit items-center gap-1.5 rounded-2xl rounded-tl-md border border-line bg-surface-2 px-4 py-3.5" role="status" aria-label="Letta is typing">
+      <span class="size-1.5 animate-typing rounded-full bg-brand"></span>
+      <span class="size-1.5 animate-typing rounded-full bg-brand [animation-delay:150ms]"></span>
+      <span class="size-1.5 animate-typing rounded-full bg-brand [animation-delay:300ms]"></span>
+    </div>`;
+      p.appendChild(d); p.scrollTop = 99999;
       return id;
     }
     function removeEl(id) { const e = document.getElementById(id); if (e) e.remove(); }
-    function escH(t) { return String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
-    function renderMd(t) {
-      let s = t;
-      s = s.replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text)">$1</strong>');
-      s = s.replace(/\*([^*\n]+?)\*/g, '<em style="color:var(--t2)">$1</em>');
-      s = s.replace(new RegExp('\x60([^\x60]+)\x60', 'g'), '<code style="background:rgba(79,163,224,0.12);color:var(--note);padding:1px 5px;border-radius:3px;font-size:11.5px">$1</code>');
-      const lines = s.split('\n'); const out = []; let inList = false;
-      for (const l of lines) {
-        const isBullet = /^[-•*]\s+/.test(l), isNum = /^\d+\.\s+/.test(l);
-        if (isBullet || isNum) {
-          if (!inList) { out.push('<ul style="list-style:none;padding:0;margin:7px 0">'); inList = true; }
-          const c = l.replace(/^[-•*]\s+/, '').replace(/^\d+\.\s+/, '');
-          out.push(`<li style="padding-left:17px;position:relative;margin-bottom:5px;color:var(--t2)"><span style="position:absolute;left:0;color:var(--note);font-size:9px;top:4px">●</span>${c}</li>`);
-        } else {
-          if (inList) { out.push('</ul>'); inList = false; }
-          if (!l.trim()) out.push('<div style="height:5px"></div>');
-          else out.push(`<p style="margin-bottom:5px;line-height:1.7">${l}</p>`);
+    function escH(t) {
+      return String(t || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+    // Tailwind classes for rendered markdown (kept as literal strings so the CSS build can see them)
+    const MD = {
+      p: 'mb-2 last:mb-0',
+      h: 'mb-1.5 mt-3 font-bold tracking-tight text-ink first:mt-0',
+      ul: 'my-2 list-disc space-y-1 pl-5 marker:text-brand',
+      ol: 'my-2 list-decimal space-y-1 pl-5 marker:font-semibold marker:text-brand',
+      code: 'rounded bg-primary-soft px-1.5 py-0.5 font-mono text-[0.85em] text-brand',
+      pre: 'my-2 overflow-x-auto rounded-lg bg-slate-900 p-3 font-mono text-xs leading-relaxed text-slate-100',
+      hr: 'my-3 border-line',
+      strong: 'font-semibold text-ink',
+      tableWrap: 'my-2 overflow-x-auto rounded-lg border border-line',
+      table: 'w-full border-collapse text-left text-xs',
+      th: 'bg-surface px-3 py-2 font-semibold text-ink',
+      td: 'border-t border-line px-3 py-2 align-top'
+    };
+
+    // Inline markdown: `code`, **bold**, *italic* / _italic_. Everything is HTML-escaped first.
+    function mdInline(s) {
+      return String(s).split(/(`[^`\n]+`)/).map((part, i) => {
+        if (i % 2 === 1) return `<code class="${MD.code}">${escH(part.slice(1, -1))}</code>`;
+        return escH(part)
+          .replace(/\*\*(.+?)\*\*/g, `<strong class="${MD.strong}">$1</strong>`)
+          .replace(/(^|[^*\w])\*([^*\n]+?)\*(?!\*)/g, '$1<em>$2</em>')
+          .replace(/(^|[^_\w])_([^_\n]+?)_(?![_\w])/g, '$1<em>$2</em>');
+      }).join('');
+    }
+
+    // Block markdown → safe HTML: headings, lists, tables, code fences, rules, paragraphs
+    function renderMd(src) {
+      const lines = String(src || '').replace(/\r\n?/g, '\n').split('\n');
+      const listRe = /^\s*(?:[-*•]|\d+[.)])\s+/;
+      const fenceRe = /^\s*```/;
+      const headRe = /^\s{0,3}(#{1,6})\s+(.*?)\s*#*\s*$/;
+      const hrRe = /^\s*([-*_])(\s*\1){2,}\s*$/;
+      const sepRe = /^\s*\|?\s*:?-{2,}:?\s*(\|\s*:?-{2,}:?\s*)*\|?\s*$/;
+      const cells = l => l.trim().replace(/^\|/, '').replace(/\|$/, '').split('|').map(c => c.trim());
+      const out = [];
+      let i = 0;
+
+      while (i < lines.length) {
+        const line = lines[i];
+        if (!line.trim()) { i++; continue; }
+
+        if (fenceRe.test(line)) {
+          const buf = [];
+          i++;
+          while (i < lines.length && !fenceRe.test(lines[i])) buf.push(lines[i++]);
+          i++;
+          out.push(`<pre class="${MD.pre}"><code>${escH(buf.join('\n'))}</code></pre>`);
+          continue;
         }
+
+        const h = line.match(headRe);
+        if (h) {
+          out.push(`<h3 class="${MD.h} ${h[1].length <= 2 ? 'text-base' : 'text-sm'}">${mdInline(h[2])}</h3>`);
+          i++;
+          continue;
+        }
+
+        if (hrRe.test(line)) { out.push(`<hr class="${MD.hr}">`); i++; continue; }
+
+        if (line.includes('|') && i + 1 < lines.length && sepRe.test(lines[i + 1]) && lines[i + 1].includes('-')) {
+          const head = cells(line);
+          const rows = [];
+          i += 2;
+          while (i < lines.length && lines[i].trim() && lines[i].includes('|')) rows.push(cells(lines[i++]));
+          out.push(`<div class="${MD.tableWrap}"><table class="${MD.table}"><thead><tr>${head.map(c => `<th class="${MD.th}">${mdInline(c)}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(c => `<td class="${MD.td}">${mdInline(c)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`);
+          continue;
+        }
+
+        if (listRe.test(line)) {
+          const ordered = /^\s*\d/.test(line);
+          const start = ordered ? parseInt(line.match(/\d+/)[0], 10) : 1;
+          const items = [];
+          while (i < lines.length && listRe.test(lines[i])) items.push(lines[i++].replace(listRe, ''));
+          const tag = ordered ? 'ol' : 'ul';
+          out.push(`<${tag} class="${ordered ? MD.ol : MD.ul}"${ordered && start !== 1 ? ` start="${start}"` : ''}>${items.map(t => `<li>${mdInline(t)}</li>`).join('')}</${tag}>`);
+          continue;
+        }
+
+        const buf = [];
+        while (i < lines.length && lines[i].trim() && !fenceRe.test(lines[i]) && !headRe.test(lines[i]) && !listRe.test(lines[i]) && !hrRe.test(lines[i])) buf.push(lines[i++]);
+        if (!buf.length) { i++; continue; }
+        out.push(`<p class="${MD.p}">${buf.map(mdInline).join('<br>')}</p>`);
       }
-      if (inList) out.push('</ul>');
       return out.join('');
     }
-    function showToast(msg) {
+
+    function showToast(msg, type = 'success') {
       const t = document.getElementById('_toast');
-      t.textContent = msg; t.style.opacity = '1';
-      clearTimeout(t._t); t._t = setTimeout(() => t.style.opacity = '0', 2200);
+      t.textContent = msg;
+      t.dataset.type = type;
+      t.dataset.show = 'true';
+      clearTimeout(t._t);
+      t._t = setTimeout(() => { t.dataset.show = 'false'; }, type === 'error' ? 4000 : 2200);
     }
     buildWave();

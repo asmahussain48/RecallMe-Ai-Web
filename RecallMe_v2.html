@@ -7,270 +7,733 @@
   <title>RecallMe — AI Lecture Assistant</title>
   <meta name="description"
     content="RecallMe records, transcribes, and lets you chat with your lectures using AI — upload video or record live audio and get instant notes.">
-  <meta name="theme-color" content="#090b11">
+  <meta name="theme-color" id="metaTheme" content="#f6f7fb">
   <link rel="icon" type="image/svg+xml"
-    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23090b11'/%3E%3Ctext x='32' y='44' font-family='Georgia,serif' font-size='34' fill='%233b7ef8' text-anchor='middle'%3ER%3C/text%3E%3C/svg%3E">
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%234f46e5'/%3E%3Cpath d='M16 26v12M24 18v28M32 12v40M40 20v24M48 26v12' stroke='white' stroke-width='5' stroke-linecap='round' fill='none'/%3E%3C/svg%3E">
+
+  <!-- Apply the saved (or system) theme before first paint to avoid a flash -->
+  <script>
+    (function () {
+      try {
+        var saved = localStorage.getItem('recallme-theme');
+        var dark = saved ? saved === 'dark' : window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.classList.toggle('dark', dark);
+        var m = document.getElementById('metaTheme');
+        if (m) m.setAttribute('content', dark ? '#0a0d16' : '#f6f7fb');
+      } catch (e) { }
+    })();
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
-    href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=JetBrains+Mono:wght@300;400&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@600;700;800&display=swap"
     rel="stylesheet">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="tailwind.css">
 </head>
 
-<body>
+<body class="min-h-dvh bg-canvas font-sans text-ink antialiased">
+
+  <!-- ═══ ICON SPRITE ═══ -->
+  <svg xmlns="http://www.w3.org/2000/svg" class="pointer-events-none absolute size-0 overflow-hidden" aria-hidden="true"
+    focusable="false">
+    <defs>
+      <symbol id="i-wave" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4" />
+      </symbol>
+      <symbol id="i-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 16V4m0 0L7 9m5-5 5 5" />
+        <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2" />
+      </symbol>
+      <symbol id="i-video" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="6" width="14" height="12" rx="2" />
+        <path d="m22 8-6 4 6 4V8z" />
+      </symbol>
+      <symbol id="i-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round">
+        <rect x="9" y="2" width="6" height="12" rx="3" />
+        <path d="M5 11a7 7 0 0 0 14 0M12 18v4M8 22h8" />
+      </symbol>
+      <symbol id="i-arrow-right" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M5 12h14m-6-6 6 6-6 6" />
+      </symbol>
+      <symbol id="i-chevron-left" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="m15 18-6-6 6-6" />
+      </symbol>
+      <symbol id="i-pencil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 20h9" />
+        <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+      </symbol>
+      <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round">
+        <path d="M18 6 6 18M6 6l12 12" />
+      </symbol>
+      <symbol id="i-sparkles" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path
+          d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+        <path d="M20 3v4M22 5h-4M4 17v2M5 18H3" />
+      </symbol>
+      <symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="m22 2-7 20-4-9-9-4Z" />
+        <path d="M22 2 11 13" />
+      </symbol>
+      <symbol id="i-copy" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round">
+        <rect x="8" y="8" width="14" height="14" rx="2" />
+        <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+      </symbol>
+      <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2M10 11v6M14 11v6" />
+      </symbol>
+      <symbol id="i-file-text" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+        <path d="M14 2v4a2 2 0 0 0 2 2h4M10 9H8M16 13H8M16 17H8" />
+      </symbol>
+      <symbol id="i-zap" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round">
+        <path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z" />
+      </symbol>
+      <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8" />
+        <path d="m21 21-4.3-4.3" />
+      </symbol>
+      <symbol id="i-help" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round">
+        <circle cx="12" cy="12" r="10" />
+        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01" />
+      </symbol>
+      <symbol id="i-star" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path
+          d="M12 2.5l2.9 5.9 6.5.95-4.7 4.6 1.1 6.5L12 17.4l-5.8 3.05 1.1-6.5-4.7-4.6 6.5-.95L12 2.5z" />
+      </symbol>
+      <symbol id="i-paperclip" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path
+          d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+      </symbol>
+      <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+        stroke-linejoin="round">
+        <circle cx="12" cy="12" r="4" />
+        <path
+          d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+      </symbol>
+      <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+      </symbol>
+      <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"
+        stroke-linecap="round" stroke-linejoin="round">
+        <path d="M20 6 9 17l-5-5" />
+      </symbol>
+      <symbol id="i-play" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+        <path d="M8 5.2v13.6a1 1 0 0 0 1.5.86l11-6.8a1 1 0 0 0 0-1.72l-11-6.8A1 1 0 0 0 8 5.2z" />
+      </symbol>
+      <symbol id="i-stop" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+        <rect x="6" y="6" width="12" height="12" rx="2.5" />
+      </symbol>
+    </defs>
+  </svg>
 
   <!-- ═══ LIBRARY PAGE ═══ -->
-  <div id="pg-library" class="page active">
-    <div class="lib-topbar">
-      <div class="brand" onclick="showLibrary()">Recall<span class="brand-dot">Me</span></div>
-      <div class="brand-sep"></div>
-      <div class="brand-sub">Record, upload, and chat with your lectures using AI</div>
-    </div>
-    <div class="lib-tabs">
-      <div class="lib-tab active">Lecture Library</div>
-    </div>
-    <div class="lib-body">
-      <div class="lib-hero">
-        <div class="lib-hero-inner">
-          <div class="lib-h">Your Lecture Library</div>
-          <div class="lib-sub">Upload pre-recorded videos or record live audio lectures. All content is automatically
-            transcribed and you can chat with Letta AI to summarize, organize, and quiz yourself on your notes.</div>
-          <div class="lib-actions">
-            <div class="action-card upload" onclick="openModal('modal-upload')">
-              <div class="action-icon-wrap blue">📹</div>
-              <div class="action-text">
-                <div class="action-title">Upload Video</div>
-                <div class="action-desc">Upload MP4, MOV, AVI or audio files. Audio is auto-extracted and transcribed.
-                </div>
-              </div>
-              <div class="action-arrow">→</div>
-            </div>
-            <div class="action-card record" onclick="openModal('modal-record')">
-              <div class="action-icon-wrap green">🎙️</div>
-              <div class="action-text">
-                <div class="action-title">Record Audio</div>
-                <div class="action-desc">Record live lectures in real time. Letta AI generates notes as you speak.</div>
-              </div>
-              <div class="action-arrow">→</div>
-            </div>
+  <div id="pg-library" class="flex min-h-dvh flex-col">
+    <header class="sticky top-0 z-30 border-b border-line bg-surface/80 backdrop-blur-md">
+      <div class="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
+        <div class="flex min-w-0 items-center gap-4">
+          <button type="button" onclick="showLibrary()" class="group flex items-center gap-2.5 rounded-lg"
+            aria-label="RecallMe home">
+            <span
+              class="grid size-9 place-items-center rounded-xl bg-linear-to-br from-primary-500 to-primary-700 text-white shadow-sm shadow-primary-600/30 transition duration-200 group-hover:scale-105">
+              <svg class="size-5">
+                <use href="#i-wave" />
+              </svg>
+            </span>
+            <span class="font-display text-xl font-extrabold tracking-tight">Recall<span
+                class="text-brand">Me</span></span>
+          </button>
+          <span class="hidden h-5 w-px bg-line md:block"></span>
+          <p class="hidden truncate text-sm text-ink-2 md:block">Record, upload, and chat with your lectures using AI</p>
+        </div>
+        <nav aria-label="Primary" class="flex items-center gap-2">
+          <span aria-current="page"
+            class="rounded-lg bg-primary-soft px-3 py-1.5 text-sm font-semibold text-brand">Lecture Library</span>
+          <button type="button" onclick="toggleTheme()" aria-label="Toggle dark mode"
+            class="grid size-9 place-items-center rounded-lg text-ink-2 transition duration-200 hover:bg-surface-2 hover:text-ink">
+            <svg class="size-5 dark:hidden">
+              <use href="#i-moon" />
+            </svg>
+            <svg class="hidden size-5 dark:block">
+              <use href="#i-sun" />
+            </svg>
+          </button>
+        </nav>
+      </div>
+    </header>
+
+    <main class="flex-1">
+      <!-- Hero -->
+      <section
+        class="relative overflow-hidden border-b border-line bg-[radial-gradient(60%_90%_at_88%_-10%,var(--glow-1),transparent),radial-gradient(45%_70%_at_4%_115%,var(--glow-2),transparent)]">
+        <div class="mx-auto max-w-6xl px-4 pb-12 pt-12 sm:px-6 sm:pb-16 sm:pt-16 lg:px-8">
+          <p
+            class="inline-flex items-center gap-2 rounded-full border border-primary-500/20 bg-primary-soft px-3 py-1 text-xs font-semibold text-brand motion-safe:animate-fade-up">
+            <svg class="size-3.5">
+              <use href="#i-sparkles" />
+            </svg>
+            AI lecture assistant
+          </p>
+          <h1
+            class="mt-5 font-display text-3xl font-extrabold tracking-tight sm:text-4xl lg:text-5xl motion-safe:animate-fade-up [animation-delay:80ms]">
+            Your Lecture Library</h1>
+          <p
+            class="mt-4 max-w-2xl text-base leading-relaxed text-ink-2 sm:text-lg motion-safe:animate-fade-up [animation-delay:160ms]">
+            Upload pre-recorded videos or record live audio lectures. All content is automatically
+            transcribed and you can chat with Letta AI to summarize, organize, and quiz yourself on your notes.</p>
+
+          <div class="mt-9 grid gap-4 sm:grid-cols-2 sm:gap-6">
+            <button type="button" onclick="openModal('modal-upload')"
+              class="group relative flex items-center gap-5 overflow-hidden rounded-2xl border border-line bg-surface p-5 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-primary-500/40 hover:shadow-lg hover:shadow-primary-600/10 sm:p-6 motion-safe:animate-fade-up [animation-delay:240ms]">
+              <span
+                class="grid size-14 shrink-0 place-items-center rounded-xl bg-primary-soft text-brand ring-1 ring-inset ring-primary-500/15 transition duration-200 group-hover:scale-105">
+                <svg class="size-7">
+                  <use href="#i-upload" />
+                </svg>
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="block text-base font-semibold">Upload Video</span>
+                <span class="mt-1 block text-sm leading-relaxed text-ink-2">Upload MP4, MOV, AVI or audio files.
+                  Audio is auto-extracted and transcribed.</span>
+              </span>
+              <svg
+                class="size-5 shrink-0 text-ink-3 transition duration-200 group-hover:translate-x-1 group-hover:text-brand">
+                <use href="#i-arrow-right" />
+              </svg>
+            </button>
+
+            <button type="button" onclick="openModal('modal-record')"
+              class="group relative flex items-center gap-5 overflow-hidden rounded-2xl border border-line bg-surface p-5 text-left shadow-sm transition duration-200 hover:-translate-y-0.5 hover:border-accent-500/40 hover:shadow-lg hover:shadow-accent-600/10 sm:p-6 motion-safe:animate-fade-up [animation-delay:320ms]">
+              <span
+                class="grid size-14 shrink-0 place-items-center rounded-xl bg-accent-soft text-accent-fg ring-1 ring-inset ring-accent-500/20 transition duration-200 group-hover:scale-105">
+                <svg class="size-7">
+                  <use href="#i-mic" />
+                </svg>
+              </span>
+              <span class="min-w-0 flex-1">
+                <span class="block text-base font-semibold">Record Audio</span>
+                <span class="mt-1 block text-sm leading-relaxed text-ink-2">Record live lectures in real time. Letta
+                  AI generates notes as you speak.</span>
+              </span>
+              <svg
+                class="size-5 shrink-0 text-ink-3 transition duration-200 group-hover:translate-x-1 group-hover:text-accent-fg">
+                <use href="#i-arrow-right" />
+              </svg>
+            </button>
           </div>
         </div>
-      </div>
-      <div class="lib-grid-area">
-        <div class="lib-grid-header">
-          <div class="lib-section-label">Saved Lectures</div>
-          <div class="lib-count" id="libCount">1 lecture</div>
+      </section>
+
+      <!-- Saved lectures -->
+      <section class="mx-auto w-full max-w-6xl px-4 py-10 sm:px-6 sm:py-12 lg:px-8" aria-labelledby="saved-heading">
+        <div class="mb-6 flex items-center justify-between gap-4">
+          <h2 id="saved-heading" class="font-sans text-xs font-semibold uppercase tracking-widest text-ink-3">Saved
+            Lectures</h2>
+          <span id="libCount"
+            class="rounded-full border border-line bg-surface px-3 py-1 text-xs font-medium text-ink-2 shadow-xs">1
+            lecture</span>
         </div>
-        <div class="lecture-grid" id="lectureGrid">
-          <div class="lecture-card" onclick="openSession('The 10 Stages of AI','sample','')">
-            <div class="lc-thumb" style="background:linear-gradient(135deg,#091828,#0f2844)">
-              <div style="text-align:center;padding:12px;z-index:1;position:relative">
-                <div
-                  style="font-size:11px;font-weight:800;color:#fff;line-height:1.35;margin-bottom:6px;letter-spacing:.5px">
-                  THE 10<br>STAGES<br>OF AI</div>
-                <div style="font-size:10px;color:#5080b0;font-weight:500">Deep Learning</div>
-              </div>
-              <div class="lc-play">▶</div>
-            </div>
-            <div class="lc-badge">📹 Sample</div>
-            <div class="lc-info">
-              <div class="lc-title">The 10 Stages of AI</div>
-              <div class="lc-date">Today</div>
-            </div>
-          </div>
+
+        <div id="lectureGrid" class="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 lg:grid-cols-4">
+          <button type="button" onclick="openSession('The 10 Stages of AI','sample','')"
+            class="group relative overflow-hidden rounded-2xl border border-line bg-surface text-left shadow-sm transition duration-200 hover:-translate-y-1 hover:border-primary-500/40 hover:shadow-lg motion-safe:animate-fade-up [animation-delay:400ms]">
+            <span class="relative block h-36 overflow-hidden bg-linear-to-br from-primary-500 to-primary-800 sm:h-40">
+              <span class="absolute -right-6 -top-6 size-28 rounded-full bg-white/10"></span>
+              <span class="absolute -bottom-10 -left-6 size-32 rounded-full bg-white/10"></span>
+              <span class="absolute inset-0 flex flex-col items-center justify-center gap-1.5 p-4 text-center text-white">
+                <span class="font-display text-sm font-extrabold leading-tight tracking-wide">THE 10<br>STAGES OF AI</span>
+                <span class="text-xs font-medium text-white/90">Deep Learning</span>
+              </span>
+              <span
+                class="absolute inset-0 grid place-items-center bg-slate-950/0 opacity-0 transition duration-200 group-hover:bg-slate-950/30 group-hover:opacity-100">
+                <span class="grid size-11 place-items-center rounded-full bg-white/95 text-primary-700 shadow-lg">
+                  <svg class="size-5 translate-x-px">
+                    <use href="#i-play" />
+                  </svg>
+                </span>
+              </span>
+              <span
+                class="absolute right-2.5 top-2.5 inline-flex items-center gap-1 rounded-full bg-black/40 px-2.5 py-1 text-xs font-medium text-white backdrop-blur">
+                <svg class="size-3.5">
+                  <use href="#i-video" />
+                </svg>
+                Sample
+              </span>
+            </span>
+            <span class="block p-4">
+              <span class="block truncate text-sm font-semibold">The 10 Stages of AI</span>
+              <span class="mt-1 block text-xs text-ink-3">Today</span>
+            </span>
+          </button>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   </div>
 
   <!-- ═══ SESSION PAGE ═══ -->
-  <div id="pg-session" class="page">
-    <div class="sess-top">
-      <button class="back-btn" onclick="showLibrary()">
-        <svg viewBox="0 0 24 24">
-          <polyline points="15 18 9 12 15 6" />
-        </svg>
-        Back to Library
-      </button>
-      <div class="sess-brand">RecallMe</div>
-      <div class="sess-actions">
-        <div class="whisper-pill" id="whisperPill" title="Whisper server status">
-          <div class="whisper-dot" id="whisperDot"></div>
-          <span id="whisperLabel">Whisper</span>
+  <div id="pg-session" hidden class="flex h-dvh flex-col overflow-hidden">
+    <header class="relative z-20 shrink-0 border-b border-line bg-surface/80 backdrop-blur-md">
+      <div class="flex h-16 items-center gap-2 px-3 sm:gap-3 sm:px-5">
+        <button type="button" onclick="showLibrary()"
+          class="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-2 text-sm font-medium text-ink-2 transition duration-200 hover:bg-surface-2 hover:text-ink">
+          <svg class="size-4">
+            <use href="#i-chevron-left" />
+          </svg>
+          <span class="sr-only sm:not-sr-only">Back to Library</span>
+        </button>
+        <span class="hidden h-5 w-px shrink-0 bg-line sm:block"></span>
+        <h1 id="sessTitle" class="min-w-0 flex-1 truncate font-display text-base font-bold tracking-tight sm:text-lg">
+          Lecture</h1>
+
+        <div class="flex shrink-0 items-center gap-2">
+          <span id="whisperPill" data-state="checking" title="Backend server status" role="status"
+            class="inline-flex items-center gap-2 rounded-full border border-line bg-surface-2 px-2.5 py-1.5 text-xs font-medium text-ink-3 transition duration-300 data-[state=offline]:border-amber-500/30 data-[state=offline]:bg-amber-500/10 data-[state=offline]:text-amber-700 data-[state=online]:border-accent-500/30 data-[state=online]:bg-accent-soft data-[state=online]:text-accent-fg lg:px-3 dark:data-[state=offline]:text-amber-300">
+            <span id="whisperDot" class="size-2 rounded-full bg-current"></span>
+            <span id="whisperLabel" class="sr-only lg:not-sr-only">Checking…</span>
+          </span>
+
+          <button id="fixBtn" type="button" onclick="correctGrammar()" disabled
+            class="inline-flex items-center gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-sm font-medium text-ink-2 shadow-xs transition duration-200 hover:bg-surface-2 hover:text-ink active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-surface disabled:hover:text-ink-2 disabled:active:scale-100">
+            <svg class="size-4">
+              <use href="#i-pencil" />
+            </svg>
+            <span id="fixBtnTxt" class="sr-only md:not-sr-only">Fix Grammar</span>
+          </button>
+
+          <button id="recBtn" type="button" onclick="toggleRec()" data-recording="false"
+            class="group/rec inline-flex items-center gap-2 rounded-lg bg-primary-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition duration-200 hover:bg-primary-700 hover:shadow-md active:scale-[0.98] data-[recording=true]:bg-red-600 data-[recording=true]:hover:bg-red-700 sm:px-3.5">
+            <svg class="size-4 group-data-[recording=true]/rec:hidden">
+              <use href="#i-mic" />
+            </svg>
+            <svg class="hidden size-4 group-data-[recording=true]/rec:block group-data-[recording=true]/rec:animate-pulse">
+              <use href="#i-stop" />
+            </svg>
+            <span id="recBtnTxt" class="sr-only sm:not-sr-only">Start Recording</span>
+          </button>
+
+          <button type="button" onclick="toggleTheme()" aria-label="Toggle dark mode"
+            class="grid size-9 place-items-center rounded-lg text-ink-2 transition duration-200 hover:bg-surface-2 hover:text-ink">
+            <svg class="size-5 dark:hidden">
+              <use href="#i-moon" />
+            </svg>
+            <svg class="hidden size-5 dark:block">
+              <use href="#i-sun" />
+            </svg>
+          </button>
         </div>
-        <button class="fix-btn" id="fixBtn" onclick="correctGrammar()" disabled>✏️ <span>Fix Grammar</span></button>
-        <button class="rec-btn" id="recBtn" onclick="toggleRec()">
-          <div class="rdot"></div><span id="recBtnTxt">Start Recording</span>
+      </div>
+    </header>
+
+    <main id="sessLayout" data-tab="notes" class="group/sess flex min-h-0 flex-1 flex-col gap-3 p-3 sm:gap-4 sm:p-4">
+      <!-- Notes / Chat switcher (small screens only) -->
+      <div role="tablist" aria-label="Session view" class="grid shrink-0 grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1 lg:hidden">
+        <button id="stab-notes" type="button" role="tab" aria-selected="true" aria-controls="panel-notes"
+          onclick="setSessionTab('notes')"
+          class="rounded-lg px-3 py-2 text-sm font-medium text-ink-2 transition duration-200 hover:text-ink aria-selected:bg-surface aria-selected:text-ink aria-selected:shadow-sm">Notes</button>
+        <button id="stab-chat" type="button" role="tab" aria-selected="false" aria-controls="panel-chat"
+          onclick="setSessionTab('chat')"
+          class="relative rounded-lg px-3 py-2 text-sm font-medium text-ink-2 transition duration-200 hover:text-ink aria-selected:bg-surface aria-selected:text-ink aria-selected:shadow-sm">
+          Chat with Letta
+          <span id="chatDot" hidden class="absolute right-3 top-2 size-2 rounded-full bg-accent-500"><span class="sr-only">New messages</span></span>
         </button>
       </div>
-    </div>
 
-    <div class="sess-layout">
-      <!-- LEFT: NOTES/TRANSCRIPT -->
-      <div class="s-left">
-        <div class="sec-head">
-          <span>Notes</span>
-          <div class="sh-btns">
-            <button class="sh-btn" onclick="copyTranscript()">Copy</button>
-            <button class="sh-btn" onclick="clearTranscript()">Clear</button>
-          </div>
-        </div>
-        <!-- LIVE RECORDING STATUS BAR -->
-        <div class="rec-status-bar" id="recStatusBar">
-          <div class="rec-dot-live"></div>
-          <span>Recording live — speak clearly</span>
-          <span id="recWordCount">0 words</span>
-        </div>
-        <div class="notes-scroll" id="notesScroll">
-          <div id="txPlaceholder" class="tx-placeholder">
-            <span>Ready to capture your lecture</span>
-            📹 Upload a video — audio is extracted and transcribed automatically<br>
-            🎙️ Click Start Recording to capture live speech in real time<br>
-            ✏️ Use Fix Grammar to correct speech-to-text errors
-          </div>
-          <div id="txBlocks"></div>
-        </div>
-        <div class="audio-panel">
-          <div class="sec-head">Audio</div>
-          <div class="audio-body">
-            <div class="waveform" id="waveform"></div>
-            <div class="await" id="audioWait">
-              <div class="spin"></div><span>Waiting for agent audio track...</span>
+      <div class="grid min-h-0 flex-1 grid-cols-1 grid-rows-1 gap-3 sm:gap-4 lg:grid-cols-2">
+        <!-- LEFT: NOTES / TRANSCRIPT -->
+        <section id="panel-notes" role="tabpanel" aria-label="Notes"
+          class="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-sm max-lg:group-data-[tab=chat]/sess:hidden">
+          <div class="flex shrink-0 items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
+            <h2 class="flex items-center gap-2.5 text-sm font-semibold">
+              <span class="grid size-8 place-items-center rounded-lg bg-primary-soft text-brand">
+                <svg class="size-4">
+                  <use href="#i-file-text" />
+                </svg>
+              </span>
+              Notes
+            </h2>
+            <div class="flex items-center gap-1">
+              <button type="button" onclick="copyTranscript()"
+                class="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-ink-2 transition duration-200 hover:bg-surface-2 hover:text-ink">
+                <svg class="size-3.5">
+                  <use href="#i-copy" />
+                </svg>
+                Copy
+              </button>
+              <button type="button" onclick="clearTranscript()"
+                class="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-ink-2 transition duration-200 hover:bg-red-500/10 hover:text-red-600 dark:hover:text-red-300">
+                <svg class="size-3.5">
+                  <use href="#i-trash" />
+                </svg>
+                Clear
+              </button>
             </div>
-            <div class="audio-lbl" id="audioLbl"></div>
           </div>
-        </div>
-      </div>
 
-      <!-- RIGHT: CHAT WITH LETTA (AI-powered by Groq) -->
-      <div class="s-right">
-        <div class="sec-head">
-          <span>Chat with Letta</span>
-          <span style="font-size:9px;color:var(--note);letter-spacing:1px">⚡ POWERED BY GROQ AI</span>
-        </div>
-        <div class="chat-scroll" id="chatScroll">
-          <div class="chat-empty" id="chatEmpty">
-            <div class="chat-empty-orb">🎓</div>
-            <div class="chat-empty-t">Letta is ready</div>
-            <div class="chat-empty-s">Ask questions about your transcript and get instant AI-powered summaries, notes,
-              and quizzes.</div>
+          <!-- Live recording status -->
+          <div id="recStatusBar" role="status" hidden
+            class="flex shrink-0 items-center gap-2.5 border-b border-red-500/20 bg-red-500/10 px-4 py-2 text-xs font-medium text-red-700 sm:px-5 dark:text-red-300">
+            <span class="size-2 shrink-0 animate-pulse rounded-full bg-red-500"></span>
+            <span>Recording live — speak clearly</span>
+            <span id="recWordCount" class="ml-auto tabular-nums text-ink-2">0 words</span>
           </div>
-        </div>
-        <div class="chips-row">
-          <div class="chip" onclick="quickAsk('Create detailed structured notes from my transcript')">📝 Notes</div>
-          <div class="chip" onclick="quickAsk('Summarize the key points briefly')">⚡ Summary</div>
-          <div class="chip" onclick="quickAsk('Fix all grammar and spelling errors in the transcript')">✏️ Fix grammar
+
+          <div id="notesScroll" tabindex="0" role="region" aria-label="Transcript"
+            class="min-h-0 flex-1 overflow-y-auto focus-visible:-outline-offset-2">
+            <div id="txPlaceholder" class="flex flex-col items-center px-6 py-14 text-center">
+              <span
+                class="grid size-14 place-items-center rounded-2xl bg-primary-soft text-brand ring-1 ring-inset ring-primary-500/15">
+                <svg class="size-7">
+                  <use href="#i-file-text" />
+                </svg>
+              </span>
+              <h3 class="mt-4 text-base font-semibold">Ready to capture your lecture</h3>
+              <ul class="mt-5 max-w-sm space-y-3 text-left text-sm text-ink-2">
+                <li class="flex items-start gap-3">
+                  <svg class="mt-0.5 size-4 shrink-0 text-brand">
+                    <use href="#i-video" />
+                  </svg>
+                  <span>Upload a video — audio is extracted and transcribed automatically</span>
+                </li>
+                <li class="flex items-start gap-3">
+                  <svg class="mt-0.5 size-4 shrink-0 text-accent-fg">
+                    <use href="#i-mic" />
+                  </svg>
+                  <span>Click <strong class="font-semibold text-ink">Start Recording</strong> to capture live speech in real time</span>
+                </li>
+                <li class="flex items-start gap-3">
+                  <svg class="mt-0.5 size-4 shrink-0 text-brand">
+                    <use href="#i-pencil" />
+                  </svg>
+                  <span>Use <strong class="font-semibold text-ink">Fix Grammar</strong> to correct speech-to-text errors</span>
+                </li>
+              </ul>
+            </div>
+            <div id="txBlocks"></div>
           </div>
-          <div class="chip"
-            onclick="quickAsk('Explain the main concepts mentioned in the transcript in detail')">🔎
-            Deep explain</div>
-          <div class="chip" onclick="quickAsk('Create 5 practice quiz questions from this content')">❓ Quiz me</div>
-          <div class="chip" onclick="quickAsk('What are the most important takeaways from this lecture?')">⭐ Key points
+
+          <!-- Audio -->
+          <div class="shrink-0 border-t border-line px-4 py-3 sm:px-5">
+            <div class="flex items-center justify-between gap-3">
+              <span class="text-xs font-semibold uppercase tracking-widest text-ink-3">Audio</span>
+              <span id="audioLbl" hidden class="flex items-center gap-1.5 text-xs font-medium text-accent-fg">
+                <span class="size-1.5 rounded-full bg-current"></span>Live microphone
+              </span>
+            </div>
+            <div class="mt-2 flex h-9 items-center justify-center">
+              <div id="audioWait" class="flex items-center gap-2 text-xs text-ink-3">
+                <svg class="size-4">
+                  <use href="#i-mic" />
+                </svg>
+                <span>Mic idle — start recording to see live audio levels</span>
+              </div>
+              <div id="waveform" hidden class="flex h-9 items-center gap-0.5" aria-hidden="true"></div>
+            </div>
           </div>
-        </div>
-        <div class="chat-input-row">
-          <input class="chat-in" id="chatIn" type="text" placeholder="Ask Letta anything about your lecture…"
-            onkeydown="if(event.key==='Enter')sendChat()" />
-          <button class="send-btn" id="sendBtn" onclick="sendChat()">Send</button>
-        </div>
+        </section>
+
+        <!-- RIGHT: CHAT WITH LETTA (AI-powered by Groq) -->
+        <section id="panel-chat" role="tabpanel" aria-label="Chat with Letta"
+          class="flex min-h-0 flex-col overflow-hidden rounded-2xl border border-line bg-surface shadow-sm max-lg:group-data-[tab=notes]/sess:hidden">
+          <div class="flex shrink-0 items-center justify-between gap-3 border-b border-line px-4 py-3 sm:px-5">
+            <h2 class="flex items-center gap-2.5 text-sm font-semibold">
+              <span class="grid size-8 place-items-center rounded-lg bg-primary-soft text-brand">
+                <svg class="size-4">
+                  <use href="#i-sparkles" />
+                </svg>
+              </span>
+              Chat with Letta
+            </h2>
+            <span
+              class="inline-flex items-center gap-1 rounded-full bg-primary-soft px-2.5 py-1 text-xs font-medium text-brand">
+              <svg class="size-3">
+                <use href="#i-zap" />
+              </svg>
+              Powered by Groq AI
+            </span>
+          </div>
+
+          <div id="chatScroll" role="log" aria-live="polite" aria-label="Chat messages" tabindex="0"
+            class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4 focus-visible:-outline-offset-2 sm:p-5"></div>
+
+          <div class="shrink-0 border-t border-line bg-surface-2/50 px-4 pb-1 pt-3 sm:px-5">
+            <div class="scrollbar-none -mx-4 flex gap-2 overflow-x-auto px-4 pb-2 sm:mx-0 sm:flex-wrap sm:overflow-visible sm:px-0">
+              <button type="button" onclick="quickAsk('Create detailed structured notes from my transcript')"
+                class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink-2 shadow-xs transition duration-200 hover:-translate-y-0.5 hover:border-primary-500/40 hover:bg-primary-soft hover:text-brand">
+                <svg class="size-3.5">
+                  <use href="#i-file-text" />
+                </svg>
+                Notes
+              </button>
+              <button type="button" onclick="quickAsk('Summarize the key points briefly')"
+                class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink-2 shadow-xs transition duration-200 hover:-translate-y-0.5 hover:border-primary-500/40 hover:bg-primary-soft hover:text-brand">
+                <svg class="size-3.5">
+                  <use href="#i-zap" />
+                </svg>
+                Summary
+              </button>
+              <button type="button" onclick="quickAsk('Fix all grammar and spelling errors in the transcript')"
+                class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink-2 shadow-xs transition duration-200 hover:-translate-y-0.5 hover:border-primary-500/40 hover:bg-primary-soft hover:text-brand">
+                <svg class="size-3.5">
+                  <use href="#i-pencil" />
+                </svg>
+                Fix grammar
+              </button>
+              <button type="button" onclick="quickAsk('Explain the main concepts mentioned in the transcript in detail')"
+                class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink-2 shadow-xs transition duration-200 hover:-translate-y-0.5 hover:border-primary-500/40 hover:bg-primary-soft hover:text-brand">
+                <svg class="size-3.5">
+                  <use href="#i-search" />
+                </svg>
+                Deep explain
+              </button>
+              <button type="button" onclick="quickAsk('Create 5 practice quiz questions from this content')"
+                class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink-2 shadow-xs transition duration-200 hover:-translate-y-0.5 hover:border-primary-500/40 hover:bg-primary-soft hover:text-brand">
+                <svg class="size-3.5">
+                  <use href="#i-help" />
+                </svg>
+                Quiz me
+              </button>
+              <button type="button" onclick="quickAsk('What are the most important takeaways from this lecture?')"
+                class="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1.5 text-xs font-medium text-ink-2 shadow-xs transition duration-200 hover:-translate-y-0.5 hover:border-primary-500/40 hover:bg-primary-soft hover:text-brand">
+                <svg class="size-3.5">
+                  <use href="#i-star" />
+                </svg>
+                Key points
+              </button>
+            </div>
+          </div>
+
+          <form onsubmit="event.preventDefault(); sendChat()"
+            class="flex shrink-0 items-center gap-2.5 border-t border-line bg-surface px-4 py-3 sm:px-5">
+            <label for="chatIn" class="sr-only">Message Letta</label>
+            <input id="chatIn" type="text" autocomplete="off" placeholder="Ask Letta anything about your lecture…"
+              class="block min-w-0 flex-1 rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-ink shadow-xs transition placeholder:text-ink-3 focus:border-primary-500 focus:outline-hidden focus:ring-2 focus:ring-primary-500/30" />
+            <button id="sendBtn" type="submit"
+              class="inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition duration-200 hover:bg-primary-700 hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:hover:bg-primary-600 disabled:active:scale-100">
+              <span>Send</span>
+              <svg class="size-4">
+                <use href="#i-send" />
+              </svg>
+            </button>
+          </form>
+        </section>
       </div>
-    </div>
+    </main>
   </div>
 
+  <!-- Empty chat state (cloned into #chatScroll whenever a session opens) -->
+  <template id="tpl-chat-empty">
+    <div id="chatEmpty" class="m-auto flex max-w-xs flex-col items-center gap-3 px-4 py-8 text-center">
+      <span
+        class="grid size-14 place-items-center rounded-2xl bg-primary-soft text-brand ring-1 ring-inset ring-primary-500/15">
+        <svg class="size-7">
+          <use href="#i-sparkles" />
+        </svg>
+      </span>
+      <h3 class="text-base font-semibold">Letta is ready</h3>
+      <p class="text-sm leading-relaxed text-ink-2">Ask questions about your transcript and get instant AI-powered
+        summaries, notes, and quizzes.</p>
+    </div>
+  </template>
+
   <!-- ═══ MODAL: UPLOAD ═══ -->
-  <div class="overlay" id="modal-upload" onclick="closeOnBg(event,'modal-upload')">
-    <div class="modal">
-      <div class="modal-header">
-        <div class="modal-title">Add a New Video</div>
-        <button class="modal-close" onclick="closeModal('modal-upload')">✕</button>
+  <div id="modal-upload" role="dialog" aria-modal="true" aria-labelledby="upload-title" onclick="closeOnBg(event,'modal-upload')" hidden
+    class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+    <div tabindex="-1"
+      class="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-line bg-surface p-5 shadow-2xl outline-hidden sm:p-6 motion-safe:animate-scale-in">
+      <div class="mb-5 flex items-center justify-between gap-4">
+        <h2 id="upload-title" class="text-lg font-bold tracking-tight">Add a New Video</h2>
+        <button type="button" onclick="closeModal('modal-upload')" aria-label="Close"
+          class="grid size-8 place-items-center rounded-lg text-ink-3 transition duration-200 hover:bg-surface-2 hover:text-ink">
+          <svg class="size-5">
+            <use href="#i-x" />
+          </svg>
+        </button>
       </div>
-      <div class="mtabs">
-        <div class="mtab active" id="tab-url" onclick="switchTab('url')">Video URL</div>
-        <div class="mtab" id="tab-file" onclick="switchTab('file')">Upload File</div>
+
+      <div role="tablist" aria-label="Video source" class="mb-5 grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1">
+        <button id="tab-url" type="button" role="tab" aria-selected="true" aria-controls="pane-url"
+          onclick="switchTab('url')"
+          class="rounded-lg px-3 py-2 text-sm font-medium text-ink-2 transition duration-200 hover:text-ink aria-selected:bg-surface aria-selected:text-ink aria-selected:shadow-sm">Video
+          URL</button>
+        <button id="tab-file" type="button" role="tab" aria-selected="false" aria-controls="pane-file"
+          onclick="switchTab('file')"
+          class="rounded-lg px-3 py-2 text-sm font-medium text-ink-2 transition duration-200 hover:text-ink aria-selected:bg-surface aria-selected:text-ink aria-selected:shadow-sm">Upload
+          File</button>
       </div>
-      <div id="pane-url">
-        <label class="flabel">Video Name (Optional)</label>
-        <input class="finput" id="vidName" type="text" placeholder="Leave empty for auto-generated name">
-        <label class="flabel">Video URL</label>
-        <div class="fhint">Paste a YouTube, Vimeo, or direct video/audio link</div>
-        <input class="finput" id="vidUrl" type="url" placeholder="https://youtube.com/watch?v=...">
-        <div class="mbtns">
-          <button class="btn-p" onclick="addFromUrl()">Add Video</button>
-          <button class="btn-c" onclick="closeModal('modal-upload')">Cancel</button>
+
+      <div id="pane-url" role="tabpanel">
+        <label for="vidName" class="mb-1.5 block text-sm font-medium">Video name <span
+            class="font-normal text-ink-3">(optional)</span></label>
+        <input id="vidName" type="text" placeholder="Leave empty for auto-generated name"
+          class="mb-4 block w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-ink shadow-xs transition placeholder:text-ink-3 focus:border-primary-500 focus:outline-hidden focus:ring-2 focus:ring-primary-500/30">
+        <label for="vidUrl" class="mb-1 block text-sm font-medium">Video URL</label>
+        <p class="mb-1.5 text-xs text-ink-3">Paste a YouTube, Vimeo, or direct video/audio link</p>
+        <input id="vidUrl" type="url" placeholder="https://youtube.com/watch?v=..."
+          class="mb-6 block w-full rounded-lg border border-line bg-surface px-3.5 py-2.5 text-sm text-ink shadow-xs transition placeholder:text-ink-3 focus:border-primary-500 focus:outline-hidden focus:ring-2 focus:ring-primary-500/30">
+        <div class="flex gap-3">
+          <button type="button" onclick="addFromUrl()"
+            class="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition duration-200 hover:bg-primary-700 hover:shadow-md active:scale-[0.98]">Add
+            Video</button>
+          <button type="button" onclick="closeModal('modal-upload')"
+            class="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-semibold text-ink-2 shadow-sm transition duration-200 hover:bg-surface-2 hover:text-ink active:scale-[0.98]">Cancel</button>
         </div>
       </div>
-      <div id="pane-file" style="display:none">
-        <!-- Method toggle: Whisper (local) vs Claude AI (cloud) -->
-        <div class="method-toggle">
-          <div class="method-btn active green" id="methodWhisper" onclick="setMethod('whisper')">
-            🎙️ Whisper (Local)
-          </div>
-          <div class="method-btn" id="methodClaude" onclick="setMethod('claude')">
-            🤖 Groq AI (Free)
-          </div>
+
+      <div id="pane-file" role="tabpanel" hidden>
+        <!-- Method toggle: Whisper (local) vs Groq AI (cloud) -->
+        <div role="radiogroup" aria-label="Transcription method"
+          class="mb-4 grid grid-cols-2 gap-1 rounded-xl bg-surface-2 p-1">
+          <button id="methodWhisper" type="button" role="radio" aria-checked="true" onclick="setMethod('whisper')"
+            class="inline-flex items-center justify-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-ink-2 transition duration-200 hover:text-ink aria-checked:bg-surface aria-checked:text-ink aria-checked:shadow-sm">
+            <svg class="size-4">
+              <use href="#i-mic" />
+            </svg>
+            Whisper (Local)
+          </button>
+          <button id="methodClaude" type="button" role="radio" aria-checked="false" onclick="setMethod('claude')"
+            class="inline-flex items-center justify-center gap-2 rounded-lg px-2 py-2 text-sm font-medium text-ink-2 transition duration-200 hover:text-ink aria-checked:bg-surface aria-checked:text-ink aria-checked:shadow-sm">
+            <svg class="size-4">
+              <use href="#i-zap" />
+            </svg>
+            Groq AI (Free)
+          </button>
         </div>
 
-        <div id="whisperNote" class="whisper-note">
-          <strong>Whisper server required.</strong> Run <code
-            style="background:rgba(79,163,224,0.12);color:var(--note);padding:1px 5px;border-radius:3px">python server.py</code>
+        <div id="whisperNote"
+          class="mb-4 rounded-lg border border-accent-500/25 bg-accent-soft px-3.5 py-3 text-xs leading-relaxed text-ink-2">
+          <strong class="font-semibold text-accent-fg">Whisper server required.</strong> Run
+          <code class="whitespace-nowrap rounded bg-surface px-1.5 py-0.5 font-mono text-[0.8rem] text-brand">python server.py</code>
           in your terminal first.<br>
           Supports MP3, MP4, WAV, M4A, MOV, WebM — any language, any accent, offline.
         </div>
-        <div id="claudeNote" class="whisper-note" style="display:none">
+        <div id="claudeNote" hidden
+          class="mb-4 rounded-lg border border-primary-500/25 bg-primary-soft px-3.5 py-3 text-xs leading-relaxed text-ink-2">
           Uses Groq Whisper AI (free) to transcribe your audio. Works for MP3, WAV, M4A, WebM.
+          Requires the backend server (<code
+            class="whitespace-nowrap rounded bg-surface px-1.5 py-0.5 font-mono text-[0.8rem] text-brand">python server.py</code>)
+          with a Groq API key set.
         </div>
 
-        <label class="flabel">Select Video or Audio File</label>
-        <div class="dropzone" id="dropZone" ondragover="event.preventDefault();this.classList.add('drag')"
-          ondragleave="this.classList.remove('drag')" ondrop="handleDrop(event)"
-          onclick="document.getElementById('fileIn').click()">
-          <div class="dropzone-icon">📁</div>
-          <p>Click to browse or drag &amp; drop</p>
-          <small id="dropzoneHint">MP3, MP4, WAV, M4A, MOV, WebM — any size</small>
+        <span class="mb-1.5 block text-sm font-medium">Select video or audio file</span>
+        <label for="fileIn" id="dropZone" data-drag="false"
+          ondragover="event.preventDefault();this.dataset.drag='true'" ondragleave="this.dataset.drag='false'"
+          ondrop="handleDrop(event)"
+          class="group mb-4 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-line px-4 py-8 text-center transition duration-200 hover:border-primary-500/60 hover:bg-primary-soft has-[:focus-visible]:border-primary-500 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary-500/30 data-[drag=true]:border-primary-500 data-[drag=true]:bg-primary-soft">
+          <span
+            class="grid size-11 place-items-center rounded-full bg-surface-2 text-ink-2 transition duration-200 group-hover:bg-surface group-hover:text-brand">
+            <svg class="size-5">
+              <use href="#i-upload" />
+            </svg>
+          </span>
+          <span class="text-sm font-medium">Click to browse or drag &amp; drop</span>
+          <span id="dropzoneHint" class="text-xs text-ink-3">MP3, MP4, WAV, M4A, MOV, WebM — any size</span>
+          <input type="file" id="fileIn" accept="video/*,audio/*,.mp3,.wav,.m4a,.flac,.ogg" class="sr-only"
+            onchange="onFileSelect(event)">
+        </label>
+
+        <div id="fileDisplay" hidden
+          class="mb-4 flex items-center gap-2 rounded-lg border border-accent-500/25 bg-accent-soft px-3.5 py-2.5 text-sm text-accent-fg">
+          <svg class="size-4 shrink-0">
+            <use href="#i-paperclip" />
+          </svg>
+          <span id="fileDisplayName" class="min-w-0 truncate"></span>
         </div>
-        <input type="file" id="fileIn" accept="video/*,audio/*,.mp3,.wav,.m4a,.flac,.ogg" style="display:none"
-          onchange="onFileSelect(event)">
-        <div class="file-chip" id="fileDisplay"><span id="fileDisplayName"></span></div>
-        <div class="prog-wrap" id="progressWrap">
-          <div class="prog-bar" id="progressBar"></div>
+
+        <div id="progressWrap" hidden class="mb-3 h-1.5 overflow-hidden rounded-full bg-surface-2">
+          <div id="progressBar"
+            class="h-full w-0 rounded-full bg-linear-to-r from-primary-500 to-accent-500 transition-[width] duration-300">
+          </div>
         </div>
-        <div class="prog-label" id="progressLabel"></div>
-        <div class="mbtns">
-          <button class="btn-p" id="uploadBtn" onclick="processUploadedFile()">🎙️ Transcribe with Whisper</button>
-          <button class="btn-c" onclick="closeModal('modal-upload')">Cancel</button>
+        <p id="progressLabel" data-state="idle" role="status" hidden
+          class="mb-3 whitespace-pre-line text-sm text-ink-2 data-[state=error]:rounded-lg data-[state=error]:border data-[state=error]:border-red-500/25 data-[state=error]:bg-red-500/10 data-[state=error]:px-3.5 data-[state=error]:py-2.5 data-[state=error]:text-red-700 data-[state=success]:font-medium data-[state=success]:text-accent-fg dark:data-[state=error]:text-red-300">
+        </p>
+
+        <div class="mt-2 flex gap-3">
+          <button id="uploadBtn" type="button" onclick="processUploadedFile()"
+            class="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition duration-200 hover:bg-primary-700 hover:shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:hover:bg-primary-600 disabled:active:scale-100">
+            <svg class="size-4">
+              <use href="#i-mic" />
+            </svg>
+            <span id="uploadBtnTxt">Transcribe with Whisper</span>
+          </button>
+          <button type="button" onclick="closeModal('modal-upload')"
+            class="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-semibold text-ink-2 shadow-sm transition duration-200 hover:bg-surface-2 hover:text-ink active:scale-[0.98]">Cancel</button>
         </div>
       </div>
     </div>
   </div>
 
   <!-- ═══ MODAL: RECORD ═══ -->
-  <div class="overlay" id="modal-record" onclick="closeOnBg(event,'modal-record')">
-    <div class="modal">
-      <div class="modal-header">
-        <div class="modal-title">Record Live Audio</div>
-        <button class="modal-close" onclick="closeModal('modal-record')">✕</button>
+  <div id="modal-record" role="dialog" aria-modal="true" aria-labelledby="record-title" onclick="closeOnBg(event,'modal-record')" hidden
+    class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm">
+    <div tabindex="-1"
+      class="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-line bg-surface p-5 shadow-2xl outline-hidden sm:p-6 motion-safe:animate-scale-in">
+      <div class="mb-5 flex items-center justify-between gap-4">
+        <h2 id="record-title" class="text-lg font-bold tracking-tight">Record Live Audio</h2>
+        <button type="button" onclick="closeModal('modal-record')" aria-label="Close"
+          class="grid size-8 place-items-center rounded-lg text-ink-3 transition duration-200 hover:bg-surface-2 hover:text-ink">
+          <svg class="size-5">
+            <use href="#i-x" />
+          </svg>
+        </button>
       </div>
-      <div class="rec-steps">
-        <div class="rec-step">
-          <div class="step-num">1</div>
-          <p>Click <strong>Start Recording Session</strong> and allow microphone access when prompted</p>
-        </div>
-        <div class="rec-step">
-          <div class="step-num">2</div>
-          <p>Speak naturally — your words are transcribed live. The transcript updates continuously without freezing</p>
-        </div>
-        <div class="rec-step">
-          <div class="step-num">3</div>
-          <p>Letta AI generates smart notes automatically as you speak</p>
-        </div>
-      </div>
-      <div class="mbtns">
-        <button class="btn-p" onclick="startRecordSession()">Start Recording Session</button>
-        <button class="btn-c" onclick="closeModal('modal-record')">Cancel</button>
+
+      <ol class="mb-6 space-y-3">
+        <li class="flex items-start gap-3.5 rounded-xl border border-line bg-surface-2/60 p-3.5">
+          <span
+            class="grid size-7 shrink-0 place-items-center rounded-full bg-primary-soft text-xs font-bold text-brand">1</span>
+          <p class="text-sm leading-relaxed text-ink-2">Click <strong class="font-semibold text-ink">Start Recording
+              Session</strong> and allow microphone access when prompted</p>
+        </li>
+        <li class="flex items-start gap-3.5 rounded-xl border border-line bg-surface-2/60 p-3.5">
+          <span
+            class="grid size-7 shrink-0 place-items-center rounded-full bg-primary-soft text-xs font-bold text-brand">2</span>
+          <p class="text-sm leading-relaxed text-ink-2">Speak naturally — your words are transcribed live. The
+            transcript updates continuously without freezing</p>
+        </li>
+        <li class="flex items-start gap-3.5 rounded-xl border border-line bg-surface-2/60 p-3.5">
+          <span
+            class="grid size-7 shrink-0 place-items-center rounded-full bg-primary-soft text-xs font-bold text-brand">3</span>
+          <p class="text-sm leading-relaxed text-ink-2">Letta AI generates smart notes automatically as you speak</p>
+        </li>
+      </ol>
+
+      <div class="flex gap-3">
+        <button type="button" onclick="startRecordSession()"
+          class="inline-flex flex-1 items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition duration-200 hover:bg-primary-700 hover:shadow-md active:scale-[0.98]">
+          <svg class="size-4">
+            <use href="#i-mic" />
+          </svg>
+          Start Recording Session
+        </button>
+        <button type="button" onclick="closeModal('modal-record')"
+          class="inline-flex items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 py-2.5 text-sm font-semibold text-ink-2 shadow-sm transition duration-200 hover:bg-surface-2 hover:text-ink active:scale-[0.98]">Cancel</button>
       </div>
     </div>
   </div>
 
-  <div id="_toast"></div>
+  <div id="_toast" role="status" aria-live="polite" data-show="false" data-type="success"
+    class="pointer-events-none fixed bottom-6 right-4 z-[60] max-w-[calc(100vw-2rem)] translate-y-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white opacity-0 shadow-lg transition duration-300 data-[show=true]:translate-y-0 data-[show=true]:opacity-100 data-[type=error]:bg-red-600 data-[type=error]:text-white sm:right-6 dark:bg-slate-100 dark:text-slate-900">
+  </div>
 
   <script src="script.js"></script>
 </body>

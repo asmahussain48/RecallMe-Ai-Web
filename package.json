@@ -1,0 +1,14 @@
+{
+  "name": "recallme-ai-web",
+  "version": "1.0.0",
+  "private": true,
+  "description": "RecallMe — AI lecture assistant (static frontend + Flask backend)",
+  "scripts": {
+    "build:css": "tailwindcss -i ./src/input.css -o ./tailwind.css --minify",
+    "dev:css": "tailwindcss -i ./src/input.css -o ./tailwind.css --watch"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.3.3",
+    "tailwindcss": "^4.3.3"
+  }
+}
