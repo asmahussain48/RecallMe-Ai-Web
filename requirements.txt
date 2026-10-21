@@ -2,6 +2,9 @@ flask
 flask-cors
 requests
 openai-whisper
+# Downloads YouTube/Vimeo/web links for the "Video URL" tab. [default] includes the
+# helper scripts YouTube needs (they run on Deno or Node.js, whichever is installed).
+yt-dlp[default]
 # Optional, for GPU/faster inference (install if you have CUDA compatible GPUs):
 # torch
 # torchvision

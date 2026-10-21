@@ -1,0 +1,5 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/RecallMe_v2.html" }
+  ]
+}
