@@ -1,5 +1,7 @@
 {
-  "rewrites": [
-    { "source": "/", "destination": "/RecallMe_v2.html" }
-  ]
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "",
+  "buildCommand": "mkdir -p dist && cp RecallMe_v2.html script.js tailwind.css dist/ && cp RecallMe_v2.html dist/index.html",
+  "outputDirectory": "dist"
 }

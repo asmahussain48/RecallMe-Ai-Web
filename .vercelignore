@@ -1,6 +1,8 @@
 # Vercel only hosts the static web page (RecallMe_v2.html + script.js + tailwind.css).
-# The Python backend runs on your own computer: Whisper needs ffmpeg and gigabytes of RAM,
-# which a serverless function can't provide — so keep it out of the deployment.
+# vercel.json does the real work: it forces the "Other" (static) preset — otherwise Vercel
+# sees server.py's Flask app and tries to bundle Whisper + PyTorch (~5.5 GB) into a
+# serverless function — and publishes only those three files from dist/.
+# This list just keeps the backend out of CLI uploads too.
 server.py
 requirements.txt
 recallme_env/
